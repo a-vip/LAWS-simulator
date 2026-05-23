@@ -28,6 +28,8 @@ interface SimulationStore extends SimulationState {
   resetSimulation: () => void;
   advanceAuthorization: () => void;
   tick: () => void;
+  setViewMode: (mode: 'dashboard' | 'satellite' | 'drone') => void;
+  setOrbitActive: (active: boolean) => void;
 }
 
 const initialState: SimulationState = {
@@ -44,6 +46,8 @@ const initialState: SimulationState = {
   assessmentVisible: false,
   systemTime: new Date(),
   totalEngagements: 0,
+  viewMode: 'dashboard',
+  orbitActive: true,
 };
 
 export const useSimulationStore = create<SimulationStore>((set, get) => ({
@@ -69,6 +73,8 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
       droneProgress: 0,
       authorizationIndex: 0,
       assessmentVisible: false,
+      viewMode: 'satellite', // Auto-switch to satellite feed on scenario load
+      orbitActive: true,
     });
   },
 
@@ -174,6 +180,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   },
 
   resetSimulation: () => set({ ...initialState, systemTime: new Date() }),
+
+  setViewMode: (mode: 'dashboard' | 'satellite' | 'drone') => set({ viewMode: mode }),
+
+  setOrbitActive: (active: boolean) => set({ orbitActive: active }),
 
   tick: () => {
     const { phase, confidenceVelocity, activeScenario, droneProgress } = get();

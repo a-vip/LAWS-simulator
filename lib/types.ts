@@ -43,6 +43,13 @@ export interface CollateralRecord {
   count: number;
 }
 
+export interface LegalContext {
+  applicableLaw: string;
+  legalGap: string;
+  treatyStatus: string;
+  advocacyAsk: string;
+}
+
 // A full scenario definition
 export interface Scenario {
   id: string;
@@ -60,6 +67,7 @@ export interface Scenario {
   confidenceThreshold: number; // score at which alert fires
   authorizationChain: AuthorizationStep[];
   collateralEstimate?: CollateralRecord[];
+  legalContext?: LegalContext;
 }
 
 // Narrative text for each phase
@@ -108,4 +116,6 @@ export interface SimulationState {
   assessmentVisible: boolean;
   systemTime: Date;
   totalEngagements: number; // session counter
+  viewMode: 'dashboard' | 'satellite' | 'drone';
+  orbitActive: boolean;
 }

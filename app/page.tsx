@@ -11,43 +11,56 @@ import { PhaseControls } from '@/components/PhaseControls';
 import { AlertOverlay } from '@/components/AlertOverlay';
 import { AssessmentScreen } from '@/components/AssessmentScreen';
 import { SimulationTicker } from '@/components/SimulationTicker';
+import { KioskMode } from '@/components/KioskMode';
+import { PresenterPanel } from '@/components/PresenterPanel';
+import { CommandDashboard } from '@/components/CommandDashboard';
+import { useSimulationStore } from '@/store/simulation';
 
 export default function Home() {
+  const { viewMode } = useSimulationStore();
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden scanlines">
       <SimulationTicker />
+      <KioskMode />
+      <PresenterPanel />
 
       {/* Top bar */}
       <SystemHeader />
 
       {/* Main layout: left panel | map | right panel */}
       <div className="flex flex-1 overflow-hidden">
+        {viewMode === 'dashboard' ? (
+          <CommandDashboard />
+        ) : (
+          <>
+            {/* ── LEFT PANEL ─────────────────────────────── */}
+            <aside className="w-72 shrink-0 flex flex-col gap-2 p-2 overflow-y-auto border-r border-terminal-border bg-terminal-panel">
+              <ScenarioSelector />
+              <TargetIntelPanel />
+            </aside>
 
-        {/* ── LEFT PANEL ─────────────────────────────── */}
-        <aside className="w-72 shrink-0 flex flex-col gap-2 p-2 overflow-y-auto border-r border-terminal-border bg-terminal-panel">
-          <ScenarioSelector />
-          <TargetIntelPanel />
-        </aside>
+            {/* ── CENTER MAP ──────────────────────────────── */}
+            <main className="flex-1 flex flex-col overflow-hidden">
+              <Map3DView className="flex-1" />
 
-        {/* ── CENTER MAP ──────────────────────────────── */}
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <Map3DView className="flex-1" />
+              {/* Below map: narrative + phase controls */}
+              <div className="shrink-0 grid grid-cols-2 gap-2 p-2 border-t border-terminal-border bg-terminal-panel">
+                <NarrativePanel />
+                <div className="flex flex-col gap-2">
+                  <PhaseControls />
+                  <EngagementWorkflow />
+                </div>
+              </div>
+            </main>
 
-          {/* Below map: narrative + phase controls */}
-          <div className="shrink-0 grid grid-cols-2 gap-2 p-2 border-t border-terminal-border bg-terminal-panel">
-            <NarrativePanel />
-            <div className="flex flex-col gap-2">
-              <PhaseControls />
-              <EngagementWorkflow />
-            </div>
-          </div>
-        </main>
-
-        {/* ── RIGHT PANEL ─────────────────────────────── */}
-        <aside className="w-64 shrink-0 flex flex-col gap-2 p-2 overflow-y-auto border-l border-terminal-border bg-terminal-panel">
-          <ConfidenceDisplay />
-          <AlertFeed />
-        </aside>
+            {/* ── RIGHT PANEL ─────────────────────────────── */}
+            <aside className="w-64 shrink-0 flex flex-col gap-2 p-2 overflow-y-auto border-l border-terminal-border bg-terminal-panel">
+              <ConfidenceDisplay />
+              <AlertFeed />
+            </aside>
+          </>
+        )}
       </div>
 
       {/* Modal overlays */}

@@ -5,7 +5,7 @@ import { AlertTriangle, Radio, Wifi, Lock } from 'lucide-react';
 import clsx from 'clsx';
 
 export function SystemHeader() {
-  const { phase, systemTime, totalEngagements, activeScenario } = useSimulationStore();
+  const { phase, systemTime, totalEngagements, activeScenario, resetSimulation } = useSimulationStore();
   const [tick, setTick] = useState(false);
 
   useEffect(() => {
@@ -44,6 +44,15 @@ export function SystemHeader() {
             LAWS-SIM
           </span>
           <span className="text-terminal-text-faint">v2.4.1</span>
+          
+          {isActive && (
+            <button
+              onClick={() => resetSimulation()}
+              className="ml-2 px-2 py-0.5 border border-terminal-blue/50 text-terminal-blue hover:bg-terminal-blue/20 rounded font-bold text-[8.5px] uppercase transition-colors"
+            >
+              [COMMAND HUB]
+            </button>
+          )}
         </div>
 
         <div className="hidden sm:flex items-center gap-1 text-terminal-text-faint">

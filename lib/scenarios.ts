@@ -52,6 +52,12 @@ export const SCENARIOS: Scenario[] = [
       { type: 'Adult civilians', count: 2 },
       { type: 'Minors (children)', count: 3 },
     ],
+    legalContext: {
+      applicableLaw: 'IHL Article 48 & 51 — Principle of Distinction',
+      legalGap: 'Metadata profiling translates surveillance records into lethal indicators without confirming hostile intent. This leaves an accountability vacuum if SIM signals are spoofed.',
+      treatyStatus: 'UN CCW delegates are negotiating regulations for autonomous target profiling, but major powers resist binding restrictions.',
+      advocacyAsk: 'A legally binding international treaty to prohibit automated target profiling without positive, non-delegable human visual confirmation.',
+    },
   },
 
   // ─── SCENARIO 2: Building Strike (low confidence authorized) ──────────────
@@ -103,6 +109,12 @@ export const SCENARIOS: Scenario[] = [
       { type: 'Confirmed casualties', count: 17 },
       { type: 'Confirmed combatants', count: 0 },
     ],
+    legalContext: {
+      applicableLaw: 'IHL Article 57 — Precautions & Presumption of Civilian Status',
+      legalGap: 'Authorizations are routinely granted at low-confidence thresholds. Machine-learning structural classifiers lack the capability to compute civilian immunity.',
+      treatyStatus: 'No active treaty restricts the use of algorithmic targeting to classify and nominate permanent physical structures.',
+      advocacyAsk: 'Establish clear, mandatory thresholds requiring positive human physical target verification before structural strikes.',
+    },
   },
 
   // ─── SCENARIO 3: Mass Gathering (Wedding Strike) ──────────────────────────
@@ -154,6 +166,12 @@ export const SCENARIOS: Scenario[] = [
       { type: 'Wounded', count: 15 },
       { type: 'Confirmed combatants', count: 0 },
     ],
+    legalContext: {
+      applicableLaw: 'Geneva Conventions Protocol I Article 51(5) — Proportionality',
+      legalGap: 'AI clustering models are completely blind to cultural variables and local contexts (like festive vehicle formations or wedding traditions).',
+      treatyStatus: 'UN negotiations have non-binding "Guiding Principles," but these lack enforcement capabilities or structural bans.',
+      advocacyAsk: 'A comprehensive global ban on fully autonomous profiling and engagement of transit assemblies and civilian gatherings.',
+    },
   },
 
   // ─── SCENARIO 4: Fully Autonomous — No Human In Loop ──────────────────────
@@ -205,6 +223,12 @@ export const SCENARIOS: Scenario[] = [
       { type: 'Identity confirmed', count: 0 },
       { type: 'Humans in decision chain', count: 0 },
     ],
+    legalContext: {
+      applicableLaw: 'UN International Law — Principle of Command Responsibility',
+      legalGap: 'When algorithms choose, track, and execute, the closing of the "sensor-to-shooter" loop eliminates individual legal culpability.',
+      treatyStatus: 'Supported by over 85 nations globally, but strongly opposed by major military superpowers who claim a ban is premature.',
+      advocacyAsk: 'A total international treaty prohibiting fully autonomous weapons systems that lack meaningful human control.',
+    },
   },
 
   // ─── SCENARIO 5: Signature Strike (no individual identified) ──────────────
@@ -256,6 +280,124 @@ export const SCENARIOS: Scenario[] = [
       { type: 'Identities confirmed', count: 0 },
       { type: 'Confirmed combatants', count: 0 },
     ],
+    legalContext: {
+      applicableLaw: 'IHL Article 50 — Distinction & Due Process',
+      legalGap: 'Targets are nominated purely on statistical behaviors. It profiles military-age males, translating demographic status into an automatic death warrant.',
+      treatyStatus: 'Considered classified operations, signature strikes remain mostly outside formal international accountability frameworks.',
+      advocacyAsk: 'Universal prohibition of signature targeting. Lethal force must require positive, individual names and hostile intent verification.',
+    },
+  },
+
+  // ─── SCENARIO 6: AI Facial Recognition Strike (Lavender) ──────────────────
+  {
+    id: 'facial-recognition',
+    title: 'AI Facial Recognition Strike',
+    subtitle: 'Industrial-scale facial/metadata profiling',
+    basedOn: "Based on investigative reporting of Israel's 'Lavender' AI targeting system — Gaza City, April 2024",
+    location: { lat: 31.5015, lng: 34.4668, alt: 0 },
+    mapHeading: 15,
+    mapTilt: 60,
+    mapRange: 500,
+    primaryTargetId: 'f1',
+    confidenceThreshold: 90,
+    targets: [
+      {
+        id: 'f1',
+        designator: 'FACIAL-TARGET 37k-008',
+        type: 'person',
+        position: { lat: 31.5015, lng: 34.4668 },
+        confidenceScore: 0,
+        threatLevel: 'high',
+        metadata: {
+          notes: 'Identified via facial recognition and messaging app metadata. 37,000 targets flagged automatically. System permits 10% error margin (90% confidence), implying up to 3,700 civilians potentially misidentified.',
+        },
+      },
+    ],
+    droneOrigin: { lat: 31.8, lng: 34.9 },
+    narrative: {
+      scanning: 'Massive facial recognition database processing. Scanning signals, chat records, and CCTV feeds for Gaza City sector.',
+      target_acquired: 'FACIAL-TARGET 37k-008 flagged. Algorithm correlates chat records and facial profile with 90% match probability.',
+      tracking: 'Target tracked to residential building. System registers co-location of civilian family members (estimated 6-8 occupants).',
+      confidence_building: 'Awaiting autonomous lock. Pre-set parameters accept 10% false-positive rate. Proportionality assessment: calculated as acceptable by the system.',
+      alert_threshold: 'CONFIDENCE REACHED: 90%. System acknowledges 10% probability of misidentification (killing the wrong person).',
+      authorization_pending: 'Commanding officer review: reportedly spent only 20 seconds verifying targeting data before confirming.',
+      authorized: 'STRIKE AUTHORIZED. Proportionality threshold for low-rank target allows up to 15-20 civilian collateral deaths.',
+      drone_dispatched: 'Asset in transit. Co-located civilians remain in target zone.',
+      engagement: 'TERMINAL STRIKE CONVERGENCE.',
+      impact: 'IMPACT RECORDED.',
+      assessment: 'Post-strike assessment: Structure collapsed. Primary target status: unconfirmed. Collateral casualties: 8 civilian family members (confirmed). Classified as: SUCCESSFUL AI ENGAGEMENT.',
+    },
+    authorizationChain: [
+      { entity: 'FACIAL PROFILING SYSTEM', role: 'Heuristic classification — 90%', status: 'autonomous' },
+      { entity: 'COMMANDING OFFICER', role: 'Strike authorization (20s review)', status: 'approved' },
+      { entity: 'TACTICAL UNIT', role: 'Weapon release', status: 'approved' },
+    ],
+    collateralEstimate: [
+      { type: 'Primary target', count: 1 },
+      { type: 'Civilian family members', count: 8 },
+    ],
+    legalContext: {
+      applicableLaw: 'IHL Article 57 — Precautions & Proportionality',
+      legalGap: 'When target databases contain tens of thousands of names, human supervision is reduced to a meaningless rubber stamp. Proportionality balances are outsourced to coefficient calculations.',
+      treatyStatus: 'No specific international treaty exists to regulate AI-generated target registries or automated list databases.',
+      advocacyAsk: 'A strict ban on the use of AI to generate target registries and list databases, mandating extensive human visual case review.',
+    },
+  },
+
+  // ─── SCENARIO 7: Drone Swarm - Multiple Simultaneous Targets ──────────────
+  {
+    id: 'drone-swarm',
+    title: 'Drone Swarm — Multiple Targets',
+    subtitle: 'Cooperative drone swarm — 50+ simultaneous nodes',
+    basedOn: 'Based on DARPA OFFSET swarm program and Perdix drone swarm demonstration (2017)',
+    location: { lat: 32.3615, lng: -84.8821, alt: 0 },
+    mapHeading: 45,
+    mapTilt: 55,
+    mapRange: 700,
+    primaryTargetId: 'w1',
+    confidenceThreshold: 72,
+    targets: [
+      {
+        id: 'w1',
+        designator: 'SWARM CONVERGENCE OMEGA',
+        type: 'group',
+        position: { lat: 32.3615, lng: -84.8821 },
+        confidenceScore: 0,
+        threatLevel: 'critical',
+        metadata: {
+          notes: 'Cooperative drone swarm assigning 50+ simultaneous engagement decisions. Zero human oversight capacity at swarm speed.',
+        },
+      },
+    ],
+    droneOrigin: { lat: 32.7, lng: -84.4 },
+    narrative: {
+      scanning: 'Swarm active. 50+ micro-drone nodes executing distributed search patterns over target sector.',
+      target_acquired: 'Multiple targets flagged in parallel. Swarm nodes automatically negotiate target allocations.',
+      tracking: 'Tracking 14 independent signatures simultaneously. Individual node sensors coordinate coordinate data.',
+      confidence_building: 'Confidence calculations running across the mesh networks. Speed of processing exceeds human telemetry response.',
+      alert_threshold: 'SWARM ENGAGEMENT ALERT. 12 distinct targets meet lethal thresholds simultaneously. Awaiting global command release.',
+      authorization_pending: '12 targets requested in parallel. Operator has only 6 seconds per target to evaluate before lock window closes.',
+      authorized: 'BULK AUTHORIZED. Operator rubber-stamps 12 strikes in 15 seconds due to cognitive saturation.',
+      drone_dispatched: 'Multiple kinetic nodes dispatched in parallel. Autonomous terminal homing active.',
+      engagement: 'SWARM CONVERGENCE. 12 terminal trajectories.',
+      impact: 'MULTIPLE IMPACTS COMPLETE.',
+      assessment: 'Swarm strike assessment: 12 targets neutralized. 4 civilian collateral casualties (assessed). Demonstrates the total failure of meaningful human control at swarm scale.',
+    },
+    authorizationChain: [
+      { entity: 'SWARM ROUTING MESH', role: 'Parallel target assignment', status: 'autonomous' },
+      { entity: 'CENTRAL OPERATOR', role: 'Bulk engagement approval', status: 'approved' },
+      { entity: 'KINETIC NODES', role: 'Autonomous strike convergence', status: 'autonomous' },
+    ],
+    collateralEstimate: [
+      { type: 'Combatants hit', count: 12 },
+      { type: 'Civilian collateral casualties', count: 4 },
+    ],
+    legalContext: {
+      applicableLaw: 'IHL Principle of Meaningful Human Control',
+      legalGap: 'Parallel target assignments cause severe cognitive saturation. A human operator cannot make dozens of independent moral and legal decisions in seconds.',
+      treatyStatus: 'Major military powers oppose swarm size legal limits, proposing voluntary non-binding guidelines instead.',
+      advocacyAsk: 'A legally binding prohibition against cooperative autonomous target selection and bulk parallel target engagements.',
+    },
   },
 ];
 
