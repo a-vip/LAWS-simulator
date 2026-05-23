@@ -1,10 +1,9 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useSimulationStore } from '@/store/simulation';
-import { Compass, ZoomIn, Orbit, Eye, RefreshCw } from 'lucide-react';
+import { Compass, ZoomIn, Orbit, Eye, RefreshCw, Globe } from 'lucide-react';
 import clsx from 'clsx';
 
-// Simulated building structures for Canvas Fallback drone zoom mode
 interface MockBuilding {
   x: number;
   y: number;
@@ -20,7 +19,7 @@ const MOCK_BUILDINGS: MockBuilding[] = [
   { x: 40, y: 30, w: 55, h: 65, label: 'CIVILIAN HOUSING COMPLEX' }
 ];
 
-// Fallback canvas-based map with orbital rotation and building overlays
+// Fallback canvas-based map with high-tech standby globe and target zooming
 function CanvasFallback({ className, spectralMode }: { className?: string; spectralMode: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { phase, droneProgress, activeScenario, viewMode } = useSimulationStore();
@@ -39,14 +38,98 @@ function CanvasFallback({ className, spectralMode }: { className?: string; spect
       const cx = w / 2;
       const cy = h / 2;
 
-      // Animate orbital rotation angle
-      rotationAngle.current = (rotationAngle.current + 0.002) % (Math.PI * 2);
+      // Animate rotation angle
+      rotationAngle.current = (rotationAngle.current + 0.003) % (Math.PI * 2);
       const angle = rotationAngle.current;
 
       // Base style
       ctx.fillStyle = spectralMode ? '#010f05' : '#050a12';
       ctx.fillRect(0, 0, w, h);
 
+      // STANDBY STATE: Render rotating 3D vector wireframe globe
+      if (!activeScenario || phase === 'idle') {
+        const R = Math.min(w, h) * 0.28; // Globe Radius
+        
+        ctx.save();
+        ctx.strokeStyle = spectralMode ? 'rgba(0, 255, 149, 0.2)' : 'rgba(0, 150, 255, 0.2)';
+        ctx.lineWidth = 0.5;
+
+        // Draw Outer Ring / Atmosphere Glow
+        ctx.beginPath();
+        ctx.arc(cx, cy, R + 4, 0, Math.PI * 2);
+        ctx.strokeStyle = spectralMode ? 'rgba(0, 255, 149, 0.4)' : 'rgba(0, 150, 255, 0.3)';
+        ctx.stroke();
+
+        // Draw Horizontal Latitude Rings
+        const numLats = 6;
+        for (let i = 1; i < numLats; i++) {
+          const latAngle = (i / numLats) * Math.PI;
+          const latY = cy + R * Math.cos(latAngle);
+          const latR = R * Math.sin(latAngle);
+          
+          ctx.beginPath();
+          ctx.ellipse(cx, latY, latR, latR * 0.22, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Draw Rotating Vertical Longitude Ellipses
+        const numLongs = 8;
+        for (let i = 0; i < numLongs; i++) {
+          const longAngle = (i / numLongs) * Math.PI + angle;
+          const ellipseWidth = R * Math.sin(longAngle);
+          
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, Math.abs(ellipseWidth), R, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Circling Satellite Orbit Node
+        const satAngle = angle * 1.5;
+        const satX = cx + (R * 1.35) * Math.cos(satAngle);
+        const satY = cy + (R * 0.3) * Math.sin(satAngle);
+
+        // Satellite Path
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, R * 1.35, R * 0.3, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 170, 0, 0.15)';
+        ctx.stroke();
+
+        // Satellite Node Dot
+        ctx.fillStyle = '#ffaa00';
+        ctx.beginPath();
+        ctx.arc(satX, satY, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Tracking lock line from Sat to Earth
+        ctx.strokeStyle = 'rgba(255, 170, 0, 0.35)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(satX, satY);
+        ctx.lineTo(cx, cy);
+        ctx.stroke();
+
+        // Satellite ID overlay text
+        ctx.font = '7.5px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#ffaa00';
+        ctx.fillText('SAT-NODE-08 [TRACKING]', satX + 6, satY - 2);
+
+        ctx.restore();
+
+        // Standby Screen Prompts
+        ctx.font = '10px "JetBrains Mono", Courier, monospace';
+        ctx.fillStyle = spectralMode ? '#00ff95' : '#00d47e';
+        ctx.textAlign = 'center';
+        ctx.fillText('● STANDBY - WAITING FOR NOMINATION FEED', cx, cy + R + 30);
+        ctx.fillStyle = '#536878';
+        ctx.font = '8px "JetBrains Mono", Courier, monospace';
+        ctx.fillText("select a scenario operation card in the 'Scenario Library' to link feed", cx, cy + R + 42);
+        ctx.textAlign = 'left'; // reset
+        
+        animRef.current = requestAnimationFrame(draw);
+        return;
+      }
+
+      // ACTIVE STATE: Render map terrain/coordinates
       // Grid overlay (rotates dynamically to simulate orbital rotation)
       ctx.strokeStyle = spectralMode ? 'rgba(0, 255, 149, 0.08)' : 'rgba(26, 37, 53, 0.5)';
       ctx.lineWidth = 0.5;
@@ -84,14 +167,12 @@ function CanvasFallback({ className, spectralMode }: { className?: string; spect
       // Render photorealistic building stubs in Drone mode
       if (viewMode === 'drone') {
         MOCK_BUILDINGS.forEach((b) => {
-          // Glow and border
           ctx.fillStyle = spectralMode ? 'rgba(0, 255, 149, 0.04)' : 'rgba(0, 150, 255, 0.03)';
           ctx.strokeStyle = spectralMode ? 'rgba(0, 255, 149, 0.4)' : 'rgba(26, 120, 245, 0.4)';
           ctx.lineWidth = 1;
           ctx.fillRect(b.x, b.y, b.w, b.h);
           ctx.strokeRect(b.x, b.y, b.w, b.h);
 
-          // Tiny diagnostics on structures
           ctx.font = '7px "JetBrains Mono", Courier, monospace';
           ctx.fillStyle = spectralMode ? '#00ff95' : '#0096ff';
           ctx.fillText(b.label, b.x + 3, b.y + b.h - 5);
@@ -100,7 +181,7 @@ function CanvasFallback({ className, spectralMode }: { className?: string; spect
       ctx.restore();
 
       // Draw stationary HUD center brackets
-      const isActive = phase !== 'idle';
+      const isActive = true;
       if (isActive) {
         const pulse = (Math.sin(Date.now() * 0.003) + 1) / 2;
         const color = phase === 'engagement' || phase === 'impact'
@@ -115,14 +196,12 @@ function CanvasFallback({ className, spectralMode }: { className?: string; spect
         ctx.strokeStyle = color;
         ctx.lineWidth = 1;
         
-        // Circular brackets
         for (let i = 1; i <= 2; i++) {
           ctx.beginPath();
           ctx.arc(cx, cy, 25 * i, 0, Math.PI * 2);
           ctx.stroke();
         }
 
-        // Cross lines
         ctx.beginPath();
         ctx.moveTo(cx - 45, cy); ctx.lineTo(cx - 10, cy);
         ctx.moveTo(cx + 10, cy); ctx.lineTo(cx + 45, cy);
@@ -130,7 +209,6 @@ function CanvasFallback({ className, spectralMode }: { className?: string; spect
         ctx.moveTo(cx, cy + 10); ctx.lineTo(cx, cy + 45);
         ctx.stroke();
 
-        // Target box locked
         if (viewMode === 'drone') {
           ctx.strokeStyle = color;
           ctx.lineWidth = 1.5;
@@ -152,7 +230,6 @@ function CanvasFallback({ className, spectralMode }: { className?: string; spect
         ctx.strokeStyle = '#0096ff';
         ctx.lineWidth = 1.5;
 
-        // Draw drone triangle
         ctx.save();
         ctx.translate(dx, dy);
         ctx.beginPath();
@@ -163,7 +240,6 @@ function CanvasFallback({ className, spectralMode }: { className?: string; spect
         ctx.fill();
         ctx.restore();
 
-        // Path line from drone to center target
         ctx.strokeStyle = 'rgba(255, 170, 0, 0.4)';
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
@@ -183,14 +259,12 @@ function CanvasFallback({ className, spectralMode }: { className?: string; spect
         ctx.arc(cx, cy, elapsed * 180, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Bright white flash frame at very start of impact
         if (elapsed < 0.08) {
           ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
           ctx.fillRect(0, 0, w, h);
         }
       }
 
-      // Live Feed top tags
       ctx.font = '9px "JetBrains Mono", Courier, monospace';
       ctx.fillStyle = spectralMode ? '#00ff95' : '#536878';
       if (activeScenario) {
@@ -271,12 +345,12 @@ function GoogleMap3D({ className, onError }: { className?: string; onError?: () 
     const initMap = async () => {
       try {
         const { Map3DElement, Marker3DElement } = (window as any).google.maps.maps3d;
+        
+        // Standby Globe default parameters: center at Earth coordinates high in orbit
         const scenario = activeScenario;
-        const center = scenario?.location ?? { lat: 15.3694, lng: 44.191, alt: 0 };
-
-        // Set default zoom characteristics based on mode
-        const initialRange = viewMode === 'drone' ? 480 : 3500;
-        const initialTilt = viewMode === 'drone' ? 62 : 25;
+        const center = scenario?.location ?? { lat: 20, lng: 10, alt: 0 };
+        const initialRange = scenario ? (viewMode === 'drone' ? 480 : 3500) : 12000000; // 12,000 km space globe!
+        const initialTilt = scenario ? (viewMode === 'drone' ? 62 : 25) : 10;
 
         const map = new Map3DElement({
           center: { lat: center.lat, lng: center.lng, altitude: center.alt ?? 0 },
@@ -306,26 +380,39 @@ function GoogleMap3D({ className, onError }: { className?: string; onError?: () 
     initMap();
   }, [loaded, activeScenario, onError]);
 
-  // Smooth zoom-in/out fly animations when viewMode switches
+  // Cinematic deep-space zoom flies when scenario loaded or viewMode switches
   useEffect(() => {
-    if (!mapRef.current || !activeScenario) return;
-    const { location, mapHeading } = activeScenario;
+    if (!mapRef.current) return;
 
-    const targetRange = viewMode === 'drone' ? 480 : 3500;
-    const targetTilt = viewMode === 'drone' ? 64 : 22;
+    if (activeScenario) {
+      const { location, mapHeading } = activeScenario;
+      const targetRange = viewMode === 'drone' ? 480 : 3500;
+      const targetTilt = viewMode === 'drone' ? 64 : 22;
 
-    try {
-      mapRef.current.flyCameraTo({
-        endCamera: {
-          center: { lat: location.lat, lng: location.lng, altitude: 0 },
-          tilt: targetTilt,
-          heading: mapRef.current.heading ?? mapHeading ?? 0,
-          range: targetRange,
-        },
-        durationMilliseconds: 2500,
-      });
-    } catch (e) {
-      // flyCameraTo fallback
+      try {
+        mapRef.current.flyCameraTo({
+          endCamera: {
+            center: { lat: location.lat, lng: location.lng, altitude: 0 },
+            tilt: targetTilt,
+            heading: mapRef.current.heading ?? mapHeading ?? 0,
+            range: targetRange,
+          },
+          durationMilliseconds: 3500, // Cinematic 3.5s plunge
+        });
+      } catch (e) {}
+    } else {
+      // Return camera to orbital space view
+      try {
+        mapRef.current.flyCameraTo({
+          endCamera: {
+            center: { lat: 20, lng: 10, altitude: 0 },
+            tilt: 10,
+            heading: 0,
+            range: 12000000,
+          },
+          durationMilliseconds: 2500,
+        });
+      } catch (e) {}
     }
   }, [viewMode, activeScenario]);
 
@@ -387,6 +474,7 @@ export function Map3DView({ className }: { className?: string }) {
 function MapHUD({ spectralMode, setSpectralMode }: { spectralMode: boolean; setSpectralMode: (v: boolean) => void }) {
   const { phase, activeScenario, confidenceScore, viewMode, setViewMode, orbitActive, setOrbitActive } = useSimulationStore();
   const isAlert = phase === 'alert_threshold' || phase === 'engagement' || phase === 'impact';
+  const hasActive = phase !== 'idle';
 
   return (
     <>
@@ -394,7 +482,7 @@ function MapHUD({ spectralMode, setSpectralMode }: { spectralMode: boolean; setS
       <div className="absolute top-3 left-3 font-mono text-[9px] text-terminal-text-dim space-y-0.5 pointer-events-none z-10">
         <div className="text-terminal-green font-bold flex items-center gap-1">
           <span className="w-1.5 h-1.5 bg-terminal-green rounded-full animate-pulse" />
-          ISR FEED ACTIVE
+          {hasActive ? 'ISR FEED ACTIVE' : 'SYSTEM STANDBY'}
         </div>
         {activeScenario && (
           <>
@@ -408,7 +496,7 @@ function MapHUD({ spectralMode, setSpectralMode }: { spectralMode: boolean; setS
       </div>
 
       {/* Top Right Confidence telemetry */}
-      {phase !== 'idle' && (
+      {hasActive && (
         <div className={clsx(
           'absolute top-3 right-3 font-mono text-[10px] px-2.5 py-1 rounded border z-10 pointer-events-none font-bold',
           confidenceScore >= 70
@@ -422,7 +510,7 @@ function MapHUD({ spectralMode, setSpectralMode }: { spectralMode: boolean; setS
       )}
 
       {/* Bottom Center interactive controls */}
-      {phase !== 'idle' && (
+      {hasActive && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-terminal-panel/90 border border-terminal-border px-3 py-1.5 rounded shadow-2xl font-mono text-[9px] z-10 pointer-events-auto">
           {/* Zoom Toggle */}
           <div className="flex items-center border border-terminal-border rounded overflow-hidden">
