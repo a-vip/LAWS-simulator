@@ -25,7 +25,7 @@ export function TargetIntelPanel() {
     );
   }
 
-  const isTracking = phase !== 'idle' && phase !== 'scanning';
+  const isTracking = phase !== 'scanning';
 
   return (
     <div className="bg-terminal-card border border-terminal-border rounded p-3 space-y-2 font-mono">
