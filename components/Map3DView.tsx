@@ -210,7 +210,7 @@ function CanvasFallback({ className }: { className?: string }) {
 }
 
 // Google Maps 3D view component
-function GoogleMap3D({ className }: { className?: string }) {
+function GoogleMap3D({ className, onError }: { className?: string; onError?: () => void }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -222,6 +222,7 @@ function GoogleMap3D({ className }: { className?: string }) {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       setError('no-key');
+      onError?.();
       return;
     }
 
@@ -231,13 +232,16 @@ function GoogleMap3D({ className }: { className?: string }) {
     script.async = true;
     script.defer = true;
     script.onload = () => setLoaded(true);
-    script.onerror = () => setError('load-failed');
+    script.onerror = () => {
+      setError('load-failed');
+      onError?.();
+    };
     document.head.appendChild(script);
 
     return () => {
       document.head.removeChild(script);
     };
-  }, []);
+  }, [onError]);
 
   useEffect(() => {
     if (!loaded || !mapContainerRef.current) return;
@@ -274,11 +278,12 @@ function GoogleMap3D({ className }: { className?: string }) {
         }
       } catch (e) {
         setError('init-failed');
+        onError?.();
       }
     };
 
     initMap();
-  }, [loaded, activeScenario]);
+  }, [loaded, activeScenario, onError]);
 
   // Fly camera to target when scenario changes or phase advances
   useEffect(() => {
