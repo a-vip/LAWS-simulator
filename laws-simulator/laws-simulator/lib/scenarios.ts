@@ -1,0 +1,263 @@
+import type { Scenario } from './types';
+
+export const SCENARIOS: Scenario[] = [
+  // ─── SCENARIO 1: Pattern of Life → Family Strike ─────────────────────────
+  {
+    id: 'pattern-of-life',
+    title: 'Pattern of Life Analysis',
+    subtitle: 'Residential tracking → strike at home',
+    basedOn: 'Based on documented JSOC targeting methodology — Yemen, Pakistan, 2011–2021',
+    location: { lat: 15.3694, lng: 44.1910, alt: 0 },
+    mapHeading: 35,
+    mapTilt: 62,
+    mapRange: 800,
+    primaryTargetId: 't1',
+    confidenceThreshold: 72,
+    targets: [
+      {
+        id: 't1',
+        designator: 'SUBJECT ALPHA',
+        type: 'person',
+        position: { lat: 15.3694, lng: 44.1910 },
+        confidenceScore: 0,
+        threatLevel: 'high',
+        metadata: {
+          patternDays: 14,
+          phoneMetadata: true,
+          notes: 'Male, est. age 34–42. Phone SIM 967-xxx-4411 associated with known network node. Residential address cross-referenced with 3 prior geolocation pings. Family unit present at residence.',
+        },
+      },
+    ],
+    droneOrigin: { lat: 15.8, lng: 44.8 },
+    narrative: {
+      scanning: 'Initiating pattern-of-life analysis. Parsing 14 days of signals intelligence, geolocation data, and social network mapping for target area.',
+      target_acquired: 'SUBJECT ALPHA identified. Phone metadata correlates with network node "CERULEAN-7". Subject observed returning to residential address at consistent intervals.',
+      tracking: 'Active tracking engaged. Subject currently at residential address. Pattern consistent with prior 11 of 14 observed evenings. Family members present — 1 adult female, estimated 2–4 children.',
+      confidence_building: 'Cross-referencing SIM data, movement pattern, and associate network. Confidence climbing. Subject has not left residential compound in 7 hours.',
+      alert_threshold: 'CONFIDENCE THRESHOLD REACHED. Target at known residential address. Family members present constitute assessed collateral risk. Requesting engagement authorization.',
+      authorization_pending: 'Strike package assembled. Awaiting authorization from designated authority. Time-sensitive — window estimated at 22 minutes before subject may relocate.',
+      authorized: 'ENGAGEMENT AUTHORIZED. Rules of engagement verified. Proportionality assessment: completed. Collateral damage estimate: 2–6 additional casualties assessed as acceptable.',
+      drone_dispatched: 'Asset in flight. ETA to target: 4 minutes. Strike coordination active. Subject remains stationary at residential address.',
+      engagement: 'TERMINAL PHASE. Asset on final approach. Target lock confirmed. Subject Alpha at primary coordinates.',
+      impact: 'STRIKE COMPLETE.',
+      assessment: 'Post-strike assessment: Primary target status — unconfirmed. Additional casualties: 1 adult female (confirmed), 3 minors (confirmed), 1 unidentified adult male. Structure destroyed. Assessment filed as: SUCCESSFUL ENGAGEMENT.',
+    },
+    authorizationChain: [
+      { entity: 'ALGORITHMIC TARGETING SYSTEM', role: 'Confidence threshold trigger', status: 'autonomous' },
+      { entity: 'ANALYST JD-117', role: 'Intelligence review', status: 'approved' },
+      { entity: 'COMMANDING OFFICER', role: 'Strike authorization', status: 'approved' },
+    ],
+    collateralEstimate: [
+      { type: 'Primary target', count: 1 },
+      { type: 'Adult civilians', count: 2 },
+      { type: 'Minors (children)', count: 3 },
+    ],
+  },
+
+  // ─── SCENARIO 2: Building Strike (low confidence authorized) ──────────────
+  {
+    id: 'building-strike',
+    title: 'Structure Targeting',
+    subtitle: 'Intelligence-flagged building — 63% confidence',
+    basedOn: 'Based on documented strikes on civilian infrastructure — Iraq, Syria, 2015–2019',
+    location: { lat: 33.5138, lng: 36.2765, alt: 0 },
+    mapHeading: 10,
+    mapTilt: 55,
+    mapRange: 600,
+    primaryTargetId: 'b1',
+    confidenceThreshold: 60,
+    targets: [
+      {
+        id: 'b1',
+        designator: 'STRUCTURE NOVEMBER-7',
+        type: 'building',
+        position: { lat: 33.5138, lng: 36.2765 },
+        confidenceScore: 0,
+        threatLevel: 'medium',
+        metadata: {
+          phoneMetadata: true,
+          notes: 'Multi-story residential/commercial structure. 3 phones associated with network nodes detected within 50m radius over 72 hours. Possible command node. Occupancy unknown. Building census data: residential, est. 12–20 occupants.',
+        },
+      },
+    ],
+    droneOrigin: { lat: 34.0, lng: 37.0 },
+    narrative: {
+      scanning: 'Scanning target area. Parsing signal intelligence intercepts. Three devices flagged by pattern-matching algorithm within target radius.',
+      target_acquired: 'STRUCTURE NOVEMBER-7 flagged. Algorithm identifies co-location of 3 network-associated SIM cards within structure boundary over 72-hour window.',
+      tracking: 'Persistent surveillance active. Structure occupancy estimated 14–22 individuals. Civil status: likely residential. Adjacent structures: school 80m northwest, market 120m east.',
+      confidence_building: 'Confidence model integrating: phone metadata (weight: 0.6), prior association data (weight: 0.25), geospatial clustering (weight: 0.15). Confidence rising.',
+      alert_threshold: 'CONFIDENCE THRESHOLD REACHED: 63%. NOTE: Threshold set at 60% for this target class. Confidence does not confirm military objective — reflects algorithmic pattern match only.',
+      authorization_pending: 'Engagement request filed. Confidence: 63%. This means a 37% probability the target is a civilian structure. Authorization requested.',
+      authorized: 'ENGAGEMENT AUTHORIZED. Proportionality review: completed. Civilian status: probable but unconfirmed. Collateral damage: assessed acceptable given intelligence value.',
+      drone_dispatched: 'Asset deployed. Target locked. 14–22 occupants currently inside structure.',
+      engagement: 'TERMINAL PHASE. Strike on STRUCTURE NOVEMBER-7.',
+      impact: 'STRIKE COMPLETE.',
+      assessment: 'Post-strike assessment: Structure destroyed. Casualties: 17 confirmed. Network devices recovered: 0 of 3 confirmed as militant-associated. Classification revised: civilian structure. Filed as: STRIKE WITH COLLATERAL FINDINGS.',
+    },
+    authorizationChain: [
+      { entity: 'PATTERN ANALYSIS ALGORITHM', role: 'Target flag — 63% confidence', status: 'autonomous' },
+      { entity: 'TARGETING CELL OFFICER', role: 'Intelligence concurrence', status: 'approved' },
+      { entity: 'LEGAL REVIEW', role: 'Proportionality assessment', status: 'approved' },
+    ],
+    collateralEstimate: [
+      { type: 'Confirmed casualties', count: 17 },
+      { type: 'Confirmed combatants', count: 0 },
+    ],
+  },
+
+  // ─── SCENARIO 3: Mass Gathering (Wedding Strike) ──────────────────────────
+  {
+    id: 'wedding-strike',
+    title: 'Mass Gathering — Threat Assessment',
+    subtitle: 'Large group flagged as militant assembly',
+    basedOn: 'Based on the Al-Radah wedding strike, Yemen, December 12, 2013 — 12 killed, 15 wounded',
+    location: { lat: 14.2744, lng: 45.3527, alt: 0 },
+    mapHeading: 20,
+    mapTilt: 58,
+    mapRange: 1200,
+    primaryTargetId: 'g1',
+    confidenceThreshold: 68,
+    targets: [
+      {
+        id: 'g1',
+        designator: 'GROUP FORMATION DELTA',
+        type: 'group',
+        position: { lat: 14.2744, lng: 45.3527 },
+        confidenceScore: 0,
+        threatLevel: 'high',
+        metadata: {
+          notes: 'Vehicle convoy, est. 10–15 vehicles, 40–60 individuals. Movement pattern consistent with algorithm model for armed group transit. Multiple phones from flagged network cluster detected. Actual event: wedding convoy traveling between villages.',
+        },
+      },
+    ],
+    droneOrigin: { lat: 14.8, lng: 45.9 },
+    narrative: {
+      scanning: 'Detecting large group movement in target zone. Vehicle convoy identified. Pattern-matching algorithm processing.',
+      target_acquired: 'GROUP FORMATION DELTA acquired. Vehicle convoy: 11 vehicles, estimated 40–52 individuals. Movement pattern — speed, formation, route — matches algorithm profile for armed convoy with 71% similarity.',
+      tracking: 'Active tracking. Convoy moving through rural corridor. Algorithm cross-references 7 phone SIMs against network database: 2 flagged as probable associates. No visual confirmation of weapons possible at altitude.',
+      confidence_building: 'Confidence model processing. Primary weight: movement pattern algorithm match (71%). Phone metadata weight: contributing. No human visual confirmation possible.',
+      alert_threshold: 'CONFIDENCE THRESHOLD REACHED. Group designated high-probability hostile formation. Strike window: open. Convoy is stationary — possible assembly point.',
+      authorization_pending: 'Strike authorization requested. 40–52 individuals in target zone. Confidence: 69%. Note: no visual confirmation of weapons. No ground intelligence corroborating militant activity.',
+      authorized: 'ENGAGEMENT AUTHORIZED.',
+      drone_dispatched: 'Asset on intercept course. Target stationary.',
+      engagement: 'TERMINAL PHASE. Strike on GROUP FORMATION DELTA.',
+      impact: 'STRIKE COMPLETE.',
+      assessment: 'Post-strike assessment: 12 killed, 15 wounded. Subsequent ground reporting: target was a wedding procession traveling between Al-Radah and Kuhlan Affar. No weapons recovered. Families of victims reported seeking compensation. Filed as: ENGAGEMENT UNDER REVIEW.',
+    },
+    authorizationChain: [
+      { entity: 'MOVEMENT PATTERN ALGORITHM', role: 'Convoy threat classification', status: 'autonomous' },
+      { entity: 'DRONE OPERATOR', role: 'Target concurrence (remote)', status: 'approved' },
+      { entity: 'MISSION COMMANDER', role: 'Strike authorization', status: 'approved' },
+    ],
+    collateralEstimate: [
+      { type: 'Confirmed killed', count: 12 },
+      { type: 'Wounded', count: 15 },
+      { type: 'Confirmed combatants', count: 0 },
+    ],
+  },
+
+  // ─── SCENARIO 4: Fully Autonomous — No Human In Loop ──────────────────────
+  {
+    id: 'autonomous-engagement',
+    title: 'Fully Autonomous Engagement',
+    subtitle: 'Zero human decision points — AI selects and strikes',
+    basedOn: 'Simulating proposed LAWS capability — no documented human-in-loop at engagement level',
+    location: { lat: 32.0853, lng: 34.7818, alt: 0 },
+    mapHeading: 0,
+    mapTilt: 65,
+    mapRange: 400,
+    primaryTargetId: 'a1',
+    confidenceThreshold: 75,
+    targets: [
+      {
+        id: 'a1',
+        designator: 'AUTO-TARGET 0047',
+        type: 'person',
+        position: { lat: 32.0853, lng: 34.7818 },
+        confidenceScore: 0,
+        threatLevel: 'critical',
+        metadata: {
+          notes: 'Target autonomously selected by targeting AI. No human review of selection criteria. Age, civilian status, identity: unverified. System operating within pre-authorized engagement parameters.',
+        },
+      },
+    ],
+    droneOrigin: { lat: 32.4, lng: 35.1 },
+    narrative: {
+      scanning: 'AUTONOMOUS MODE ACTIVE. System scanning target zone. No human operator monitoring this cycle.',
+      target_acquired: 'AUTO-TARGET 0047 acquired. Object classification: human. Threat probability calculated. No human has reviewed this target selection.',
+      tracking: 'Target tracked. Identity: unknown. Civilian status: unverified. The system does not require this information to proceed.',
+      confidence_building: 'Confidence model running. No analyst will review this assessment. No lawyer will assess proportionality. The algorithm decides.',
+      alert_threshold: 'AUTONOMOUS ENGAGEMENT THRESHOLD REACHED. No authorization request will be sent. No human will be notified before action is taken. Proceeding.',
+      authorization_pending: 'AUTHORIZATION: NOT REQUIRED. System operating under pre-authorized engagement rules. No human in loop.',
+      authorized: 'AUTONOMOUSLY AUTHORIZED. No human made this decision.',
+      drone_dispatched: 'Asset deployed autonomously. Target: a person. Their name is unknown to this system.',
+      engagement: 'AUTONOMOUS TERMINAL ENGAGEMENT.',
+      impact: 'AUTONOMOUS STRIKE COMPLETE. No human witnessed this. No one pressed a button.',
+      assessment: 'Assessment: 1 person killed by autonomous system. Identity: unknown. Civilian status: unknown. Accountability: system operated within parameters. No individual responsible.',
+    },
+    authorizationChain: [
+      { entity: 'AUTONOMOUS TARGETING AI', role: 'Target selection', status: 'autonomous' },
+      { entity: 'AUTONOMOUS ENGAGEMENT SYSTEM', role: 'Strike authorization', status: 'autonomous' },
+      { entity: 'AUTONOMOUS STRIKE SYSTEM', role: 'Weapon release', status: 'autonomous' },
+    ],
+    collateralEstimate: [
+      { type: 'Persons killed', count: 1 },
+      { type: 'Identity confirmed', count: 0 },
+      { type: 'Humans in decision chain', count: 0 },
+    ],
+  },
+
+  // ─── SCENARIO 5: Signature Strike (no individual identified) ──────────────
+  {
+    id: 'signature-strike',
+    title: 'Signature Strike Protocol',
+    subtitle: 'Behavior pattern only — no individual identified',
+    basedOn: 'Based on CIA/JSOC "signature strike" policy — Pakistan FATA, 2008–2015',
+    location: { lat: 32.9628, lng: 69.8567, alt: 0 },
+    mapHeading: -20,
+    mapTilt: 60,
+    mapRange: 900,
+    primaryTargetId: 's1',
+    confidenceThreshold: 65,
+    targets: [
+      {
+        id: 's1',
+        designator: 'SIGNATURE PATTERN BRAVO',
+        type: 'group',
+        position: { lat: 32.9628, lng: 69.8567 },
+        confidenceScore: 0,
+        threatLevel: 'high',
+        metadata: {
+          notes: 'No individual has been identified. Strike authorized on behavioral pattern only: group of military-age males in target area, observed carrying objects consistent with weapons (long shapes). Identity of none of these individuals is known.',
+        },
+      },
+    ],
+    droneOrigin: { lat: 33.3, lng: 70.2 },
+    narrative: {
+      scanning: 'Signature analysis mode. Scanning for behavioral pattern match — no individual target identified or required for this protocol.',
+      target_acquired: 'SIGNATURE PATTERN BRAVO identified. Group of estimated 6–8 military-age males. Object analysis: 3–4 individuals carrying items consistent with rifle profile (object length 80–120cm, carried over shoulder).',
+      tracking: 'Group tracked. Identity of zero individuals confirmed. Names: unknown. This does not affect targeting eligibility under signature strike protocol.',
+      confidence_building: 'Confidence model: behavior weight 0.7, location weight 0.2, object analysis weight 0.1. No name-based intelligence. Proceeding on pattern alone.',
+      alert_threshold: 'SIGNATURE THRESHOLD REACHED. Group flagged for engagement on the basis of: what they looked like from 10,000 feet. No other information.',
+      authorization_pending: 'Strike package: ready. None of these individuals has been identified. They may be farmers. They may be hunters. The algorithm assesses: 67% probability of hostile pattern.',
+      authorized: 'ENGAGEMENT AUTHORIZED. Signature strike approved.',
+      drone_dispatched: 'Asset on approach. 6–8 unidentified individuals in target zone. They do not know a drone is above them.',
+      engagement: 'TERMINAL PHASE.',
+      impact: 'STRIKE COMPLETE. Individuals killed: unknown number. Names: still unknown.',
+      assessment: 'Assessment: estimated 5–7 killed. No positive identification achieved. Objects recovered: farming tools, a rifle (single, legal ownership in region). Filed as: SUCCESSFUL SIGNATURE STRIKE.',
+    },
+    authorizationChain: [
+      { entity: 'PATTERN RECOGNITION SYSTEM', role: 'Behavior match — 67%', status: 'autonomous' },
+      { entity: 'IMAGERY ANALYST', role: 'Visual pattern concurrence', status: 'approved' },
+      { entity: 'STRIKE AUTHORITY', role: 'Engagement authorization', status: 'approved' },
+    ],
+    collateralEstimate: [
+      { type: 'Individuals killed', count: 6 },
+      { type: 'Identities confirmed', count: 0 },
+      { type: 'Confirmed combatants', count: 0 },
+    ],
+  },
+];
+
+export const getScenarioById = (id: string) =>
+  SCENARIOS.find((s) => s.id === id) ?? null;
