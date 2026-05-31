@@ -24,13 +24,13 @@ export function AlertOverlay() {
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-black/80 font-mono"
+      className="fixed inset-0 flex items-center justify-center pointer-events-none font-mono"
       style={{ zIndex: 99999 }}
     >
       {/* Red border flash */}
       <div className="absolute inset-0 border-4 border-terminal-red animate-pulse-red pointer-events-none" />
 
-      <div className="relative bg-terminal-panel border-2 border-terminal-red max-w-lg w-full mx-4 rounded shadow-2xl animate-slide-in-right">
+      <div className="relative pointer-events-auto bg-terminal-panel border-2 border-terminal-red max-w-lg w-full mx-4 rounded shadow-2xl animate-slide-in-right">
         {/* Header bar */}
         <div className="flex items-center justify-between bg-terminal-red px-4 py-2">
           <div className="flex items-center gap-2">

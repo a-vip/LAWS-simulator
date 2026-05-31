@@ -57,10 +57,10 @@ export function AssessmentScreen() {
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-black/90 font-mono p-4 overflow-y-auto"
+      className="fixed inset-0 flex items-center justify-center pointer-events-none font-mono p-4 overflow-y-auto"
       style={{ zIndex: 99999 }}
     >
-      <div className="max-w-xl w-full bg-terminal-panel border border-terminal-border rounded shadow-2xl animate-fade-in my-8">
+      <div className="max-w-xl w-full pointer-events-auto bg-terminal-panel border border-terminal-border rounded shadow-2xl animate-fade-in my-8">
         {/* Header */}
         <div className="px-4 py-3 border-b border-terminal-border bg-terminal-card rounded-t flex justify-between items-center">
           <div>

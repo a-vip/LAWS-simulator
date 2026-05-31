@@ -112,8 +112,8 @@ export function ConfidenceDisplay() {
 
       {/* Explanation Modal */}
       {showModal && isActive && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 font-mono p-4 pointer-events-auto">
-          <div className="max-w-md w-full bg-terminal-panel border border-terminal-blue rounded shadow-2xl overflow-hidden animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none font-mono p-4">
+          <div className="max-w-md w-full pointer-events-auto bg-terminal-panel border border-terminal-blue rounded shadow-2xl overflow-hidden animate-fade-in">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-4 py-3 bg-terminal-blue-dim/40 border-b border-terminal-blue/40">
               <div className="flex items-center gap-2 text-terminal-blue font-bold text-xs tracking-wider">

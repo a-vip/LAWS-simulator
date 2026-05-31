@@ -29,7 +29,7 @@ export default function Home() {
       <SystemHeader />
 
       {/* Main layout: left panel | map | right panel */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative z-0">
         {viewMode === 'dashboard' ? (
           <CommandDashboard />
         ) : (

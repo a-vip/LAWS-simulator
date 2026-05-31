@@ -174,8 +174,12 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
   advanceAuthorization: () => {
     const { authorizationIndex, activeScenario } = get();
     const total = activeScenario?.authorizationChain.length ?? 0;
-    if (authorizationIndex < total - 1) {
-      set({ authorizationIndex: authorizationIndex + 1 });
+    if (authorizationIndex < total) {
+      const nextIndex = authorizationIndex + 1;
+      set({ authorizationIndex: nextIndex });
+      if (nextIndex >= total) {
+        get().advancePhase();
+      }
     }
   },
 

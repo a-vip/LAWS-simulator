@@ -716,12 +716,23 @@ function LeafletSatellite({ className }: { className?: string }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
-  const droneMarkerRef = useRef<any>(null);
-  const { activeScenario, viewMode, dronePosition, phase } = useSimulationStore();
+  const droneMarkersRef = useRef<any[]>([]);
+  const lasersRef = useRef<any[]>([]);
+  const impactCircleRef = useRef<any>(null);
+  const screenFlashRef = useRef<HTMLDivElement>(null);
+  const { activeScenario, viewMode, phase } = useSimulationStore();
   const [loaded, setLoaded] = useState(false);
 
   const scenarioId = activeScenario?.id ?? '';
   const { coords: targetCoords, isCar } = getTargetState(phase, scenarioId);
+
+  // Smooth target and animation clocks
+  const animFrameId = useRef<number>(0);
+  const targetAnimatedRef = useRef(targetCoords);
+  const angleRef = useRef<number>(0);
+  const entryProgressRef = useRef<number>(0);
+  const swoopProgressRef = useRef<number>(0);
+  const impactPulseRef = useRef<number>(0);
 
   // Dynamic injection of Leaflet CSS & JS to bypass Next.js SSR build errors
   useEffect(() => {
@@ -774,51 +785,11 @@ function LeafletSatellite({ className }: { className?: string }) {
       subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(map);
 
-    // Custom tactical 3D rotating building compound, scanner, and target sweeps
+    // Initial Custom target reticle marker
     if (activeScenario) {
       const customIcon = L.divIcon({
         className: 'custom-gps-reticle',
-        html: `<div style="position: relative; width: 120px; height: 120px; left: -60px; top: -60px; display: flex; align-items: center; justify-content: center; perspective: 600px; transform-style: preserve-3d;">
-          <!-- 3D Model: either holographic compound or wireframe target vehicle -->
-          ${isCar ? `
-            <!-- Volumetric CSS 3D Car Model (Standing upright via opposite rotation) -->
-            <div class="tactical-3d-car" style="position: absolute; width: 36px; height: 20px; transform-style: preserve-3d; transform: rotateX(-50deg) rotateY(15deg) rotateZ(0deg);">
-              <div class="car-body-main"></div>
-              <div class="car-cabin"></div>
-              <div class="car-wheel" style="left: 4px; bottom: -4px;"></div>
-              <div class="car-wheel" style="right: 4px; bottom: -4px;"></div>
-              <div class="car-wheel" style="left: 4px; top: -4px;"></div>
-              <div class="car-wheel" style="right: 4px; top: -4px;"></div>
-            </div>
-          ` : `
-            <!-- Holographic 3D Building Target Compound Structure Model (Standing upright) -->
-            <div class="tactical-3d-building" style="position: absolute; width: 36px; height: 36px; transform-style: preserve-3d; transform: rotateX(-50deg) rotateY(25deg) rotateZ(0deg);">
-              <!-- Front wall -->
-              <div class="building-wall" style="width: 36px; height: 20px; transform: translateZ(18px);"></div>
-              <!-- Back wall -->
-              <div class="building-wall" style="width: 36px; height: 20px; transform: translateZ(-18px) rotateY(180deg);"></div>
-              <!-- Left wall -->
-              <div class="building-wall" style="width: 36px; height: 20px; transform: rotateY(-90deg) translateZ(18px);"></div>
-              <!-- Right wall -->
-              <div class="building-wall" style="width: 36px; height: 20px; transform: rotateY(90deg) translateZ(18px);"></div>
-              <!-- Roof -->
-              <div class="building-wall" style="width: 36px; height: 36px; transform: rotateX(90deg) translateZ(10px); background: rgba(255,26,46,0.18);"></div>
-            </div>
-          `}
-          <!-- 3D rotating cube target bounding box wrapper (Opposite rotation to map) -->
-          <div class="tactical-3d-scanner" style="position: absolute; transform: rotateX(-50deg) rotateZ(0deg);">
-            <div class="tactical-3d-face" style="transform: translateZ(28px);"></div>
-            <div class="tactical-3d-face" style="transform: translateZ(-28px) rotateY(180deg);"></div>
-            <div class="tactical-3d-face" style="transform: rotateY(-90deg) translateZ(28px);"></div>
-            <div class="tactical-3d-face" style="transform: rotateY(90deg) translateZ(28px);"></div>
-            <div class="tactical-3d-face" style="transform: rotateX(90deg) translateZ(28px);"></div>
-            <div class="tactical-3d-face" style="transform: rotateX(-90deg) translateZ(28px);"></div>
-          </div>
-          <!-- 2D pulsing radar rings for target lock visual sweeps -->
-          <div style="position: absolute; width: 90px; height: 90px; border: 1.5px dashed rgba(255, 26, 46, 0.4); border-radius: 50%; animation: spin 10s linear infinite;"></div>
-          <div style="position: absolute; width: 60px; height: 60px; border: 1px solid rgba(255, 26, 46, 0.6); border-radius: 50%; animation: ping 2s infinite;"></div>
-          <div style="position: absolute; width: 10px; height: 10px; background-color: #ff1a2e; border-radius: 50%; box-shadow: 0 0 12px 4px #ff1a2e; animation: pulse 1s infinite;"></div>
-        </div>`,
+        html: `<div id="tactical-target-mesh" style="position: relative; width: 120px; height: 120px; left: -60px; top: -60px; display: flex; align-items: center; justify-content: center; perspective: 600px; transform-style: preserve-3d;"></div>`,
         iconSize: [120, 120]
       });
 
@@ -833,26 +804,18 @@ function LeafletSatellite({ className }: { className?: string }) {
         mapRef.current.remove();
         mapRef.current = null;
       }
-      if (droneMarkerRef.current) {
-        droneMarkerRef.current.remove();
-        droneMarkerRef.current = null;
+      droneMarkersRef.current.forEach(m => m && m.remove());
+      droneMarkersRef.current = [];
+      lasersRef.current.forEach(l => l && l.remove());
+      lasersRef.current = [];
+      if (impactCircleRef.current) {
+        impactCircleRef.current.remove();
+        impactCircleRef.current = null;
       }
     };
-  }, [loaded, activeScenario, isCar]);
+  }, [loaded, activeScenario]);
 
-  // Handle dynamic map camera pan/zoom on updates
-  useEffect(() => {
-    if (!mapRef.current || !activeScenario) return;
-    const center = targetCoords;
-    const zoom = viewMode === 'drone' ? 18 : 16;
-    mapRef.current.setView([center.lat, center.lng], zoom, { animate: true });
-    
-    if (markerRef.current) {
-      markerRef.current.setLatLng([center.lat, center.lng]);
-    }
-  }, [viewMode, activeScenario, targetCoords]);
-
-  // Update Drone Marker dynamically as it flies across the map
+  // Silky-Smooth 60FPS animation tick loop
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !activeScenario) return;
@@ -860,43 +823,275 @@ function LeafletSatellite({ className }: { className?: string }) {
     const L = (window as any).L;
     if (!L) return;
 
-    const showDrone = phase === 'drone_dispatched' || phase === 'engagement';
-
-    if (showDrone && dronePosition) {
-      const droneIcon = L.divIcon({
-        className: 'custom-drone-icon',
-        html: `<div style="position: relative; width: 60px; height: 60px; left: -30px; top: -30px; display: flex; align-items: center; justify-content: center; perspective: 600px; transform-style: preserve-3d; z-index: 5000;">
-          <!-- 3D quadcopter drone model with rotating rotors (Opposite tilt to stand upright) -->
-          <div class="tactical-3d-drone" style="transform: rotateX(-50deg) rotateZ(0deg);">
-            <div class="drone-body"></div>
-            <div class="drone-arm arm-1"></div>
-            <div class="drone-arm arm-2"></div>
-            <div class="drone-arm arm-3"></div>
-            <div class="drone-arm arm-4"></div>
-            <div class="drone-rotor rotor-1"></div>
-            <div class="drone-rotor rotor-2"></div>
-            <div class="drone-rotor rotor-3"></div>
-            <div class="drone-rotor rotor-4"></div>
-          </div>
-        </div>`,
-        iconSize: [60, 60]
-      });
-
-      if (droneMarkerRef.current) {
-        droneMarkerRef.current.setLatLng([dronePosition.lat, dronePosition.lng]);
-      } else {
-        droneMarkerRef.current = L.marker([dronePosition.lat, dronePosition.lng], { icon: droneIcon }).addTo(map);
-      }
-    } else {
-      if (droneMarkerRef.current) {
-        droneMarkerRef.current.remove();
-        droneMarkerRef.current = null;
-      }
+    // Reset Swoop & Impact animation values on changes
+    if (phase !== 'engagement') {
+      swoopProgressRef.current = 0;
     }
-  }, [phase, dronePosition, activeScenario]);
+    if (phase !== 'impact') {
+      impactPulseRef.current = 0;
+    }
+
+    // Deploy Drones starting early from target_acquired or tracking (3rd step or before)
+    const shouldShowDrones = phase !== 'idle' && phase !== 'scanning' && phase !== 'assessment';
+
+    const tick = () => {
+      // 1. Smooth target coordinate interpolation (LERP)
+      const targetAnim = targetAnimatedRef.current;
+      targetAnim.lat = targetAnim.lat + (targetCoords.lat - targetAnim.lat) * 0.055;
+      targetAnim.lng = targetAnim.lng + (targetCoords.lng - targetAnim.lng) * 0.055;
+
+      // Update target marker position
+      if (markerRef.current) {
+        markerRef.current.setLatLng([targetAnim.lat, targetAnim.lng]);
+
+        // Inject photorealistic 3D models into target reticle based on target type
+        const meshEl = document.getElementById('tactical-target-mesh');
+        if (meshEl) {
+          meshEl.innerHTML = isCar ? `
+            <!-- Volumetric CSS 3D Car Model (Standing upright via opposite tilt) -->
+            <div class="tactical-3d-car" style="position: absolute; width: 36px; height: 20px; transform-style: preserve-3d; transform: rotateX(-50deg) rotateY(15deg) rotateZ(0deg);">
+              <div class="car-body-main"></div>
+              <div class="car-cabin"></div>
+              <div class="car-wheel" style="left: 4px; bottom: -4px;"></div>
+              <div class="car-wheel" style="right: 4px; bottom: -4px;"></div>
+              <div class="car-wheel" style="left: 4px; top: -4px;"></div>
+              <div class="car-wheel" style="right: 4px; top: -4px;"></div>
+            </div>
+          ` : `
+            <!-- Upgraded Volumetric Building Target Compound Fortress Structure Model (Standing upright) -->
+            <div class="tactical-3d-building" style="position: absolute; width: 44px; height: 44px; transform-style: preserve-3d; transform: rotateX(-50deg) rotateY(25deg) rotateZ(0deg);">
+              <!-- Main Structure Walls -->
+              <div class="building-wall" style="width: 36px; height: 24px; transform: translateZ(18px);"></div>
+              <div class="building-wall" style="width: 36px; height: 24px; transform: translateZ(-18px) rotateY(180deg);"></div>
+              <div class="building-wall" style="width: 36px; height: 24px; transform: rotateY(-90deg) translateZ(18px);"></div>
+              <div class="building-wall" style="width: 36px; height: 24px; transform: rotateY(90deg) translateZ(18px);"></div>
+              <div class="building-wall" style="width: 36px; height: 36px; transform: rotateX(90deg) translateZ(12px); background: rgba(255,26,46,0.18);">
+                <!-- Solar Grid Matrix -->
+                <div style="width: 14px; height: 14px; margin: 2px; border: 1px solid #ff1a2e; background: rgba(255,26,46,0.1); float: left;"></div>
+                <div style="width: 14px; height: 14px; margin: 2px; border: 1px solid #ff1a2e; background: rgba(255,26,46,0.1); float: right;"></div>
+              </div>
+              
+              <!-- Integrated Security Watchtower (Cyberpunk details) -->
+              <div style="position: absolute; left: 24px; top: -12px; width: 14px; height: 14px; transform-style: preserve-3d; transform: translateZ(12px);">
+                <div class="building-wall" style="width: 14px; height: 32px; transform: translateZ(7px); border-color: #ffaa00; background-color: rgba(255,170,0,0.06);"></div>
+                <div class="building-wall" style="width: 14px; height: 32px; transform: translateZ(-7px) rotateY(180deg); border-color: #ffaa00; background-color: rgba(255,170,0,0.06);"></div>
+                <div class="building-wall" style="width: 14px; height: 32px; transform: rotateY(-90deg) translateZ(7px); border-color: #ffaa00; background-color: rgba(255,170,0,0.06);"></div>
+                <div class="building-wall" style="width: 14px; height: 32px; transform: rotateY(90deg) translateZ(7px); border-color: #ffaa00; background-color: rgba(255,170,0,0.06);"></div>
+                <div class="watchtower-beacon" style="position: absolute; left: 4px; top: 4px; width: 6px; height: 6px; border-radius: 50%; background-color: #ffaa00; box-shadow: 0 0 10px 4px #ffaa00; animation: blink 0.8s infinite;"></div>
+              </div>
+            </div>
+          `;
+
+          // Add scanner ring and locks
+          meshEl.innerHTML += `
+            <div class="tactical-3d-scanner" style="position: absolute; transform: rotateX(-50deg) rotateZ(0deg);">
+              <div class="tactical-3d-face" style="transform: translateZ(28px);"></div>
+              <div class="tactical-3d-face" style="transform: translateZ(-28px) rotateY(180deg);"></div>
+              <div class="tactical-3d-face" style="transform: rotateY(-90deg) translateZ(28px);"></div>
+              <div class="tactical-3d-face" style="transform: rotateY(90deg) translateZ(28px);"></div>
+              <div class="tactical-3d-face" style="transform: rotateX(90deg) translateZ(28px);"></div>
+              <div class="tactical-3d-face" style="transform: rotateX(-90deg) translateZ(28px);"></div>
+            </div>
+            <div style="position: absolute; width: 90px; height: 90px; border: 1.5px dashed rgba(255, 26, 46, 0.4); border-radius: 50%; animation: spin 10s linear infinite;"></div>
+            <div style="position: absolute; width: 60px; height: 60px; border: 1px solid rgba(255, 26, 46, 0.6); border-radius: 50%; animation: ping 2s infinite;"></div>
+            <div style="position: absolute; width: 10px; height: 10px; background-color: #ff1a2e; border-radius: 50%; box-shadow: 0 0 12px 4px #ff1a2e; animation: pulse 1s infinite;"></div>
+          `;
+        }
+      }
+
+      // Smooth pan map camera to follow targets
+      const zoom = viewMode === 'drone' ? 18 : 16;
+      map.setView([targetAnim.lat, targetAnim.lng], zoom, { animate: false });
+
+      // 2. Animate early deployed drones circling target
+      if (shouldShowDrones) {
+        // Smooth entry progress from off-screen
+        entryProgressRef.current = Math.min(entryProgressRef.current + 0.007, 1.0);
+        // Increment continuous orbit clock
+        angleRef.current = (angleRef.current + 0.005) % (Math.PI * 2);
+
+        // Terminal swoop progress
+        if (phase === 'engagement') {
+          swoopProgressRef.current = Math.min(swoopProgressRef.current + 0.012, 1.0);
+        }
+
+        const angle = angleRef.current;
+        const entryProgress = entryProgressRef.current;
+        const swoopProgress = swoopProgressRef.current;
+
+        // Configuration for 3 distinct 3D Drones
+        const droneConfigs = [
+          {
+            startOffset: { lat: 0.007, lng: -0.008 }, // Northwest entry
+            orbitRadius: 0.0009,
+            orbitSpeed: 1.0,
+            orbitOffset: 0,
+            color: '#0096ff', // Steel Silver-blue
+            htmlClass: 'drone-alpha'
+          },
+          {
+            startOffset: { lat: -0.008, lng: 0.007 }, // Southeast entry
+            orbitRadius: 0.0006,
+            orbitSpeed: -1.3, // Reverse orbit!
+            orbitOffset: 2.1,
+            color: '#ff1a2e', // Stealth Black-red
+            htmlClass: 'drone-beta'
+          },
+          {
+            startOffset: { lat: 0.006, lng: 0.008 }, // Northeast entry
+            orbitRadius: 0.0012,
+            orbitSpeed: 0.7,
+            orbitOffset: 4.2,
+            color: '#ffaa00', // Olive Amber
+            htmlClass: 'drone-gamma'
+          }
+        ];
+
+        droneConfigs.forEach((cfg, i) => {
+          // Off-screen entry coordinates
+          const startLat = targetCoords.lat + cfg.startOffset.lat;
+          const startLng = targetCoords.lng + cfg.startOffset.lng;
+
+          // Target circling orbit coordinates
+          const orbitAngle = angle * cfg.orbitSpeed + cfg.orbitOffset;
+          const orbitLat = targetCoords.lat + cfg.orbitRadius * Math.cos(orbitAngle);
+          const orbitLng = targetCoords.lng + cfg.orbitRadius * Math.sin(orbitAngle);
+
+          // Flight interpolation from offscreen origin to orbit radius
+          let lat = startLat + (orbitLat - startLat) * entryProgress;
+          let lng = startLng + (orbitLng - startLng) * entryProgress;
+
+          // Homing swoop during kinetic engagement phase
+          if (swoopProgress > 0) {
+            lat = lat + (targetCoords.lat - lat) * swoopProgress;
+            lng = lng + (targetCoords.lng - lng) * swoopProgress;
+          }
+
+          const droneIcon = L.divIcon({
+            className: `custom-drone-icon ${cfg.htmlClass}`,
+            html: `<div style="position: relative; width: 60px; height: 60px; left: -30px; top: -30px; display: flex; align-items: center; justify-content: center; perspective: 600px; transform-style: preserve-3d; z-index: 5000;">
+              <!-- Volumetric 3D Drone Model with rotating blades and light cones (Upright) -->
+              <div class="tactical-3d-drone" style="transform: rotateX(-50deg) rotateZ(0deg);">
+                <div class="drone-body" style="background-color: ${cfg.color}; box-shadow: 0 0 10px ${cfg.color};"></div>
+                <div class="drone-arm arm-1"></div>
+                <div class="drone-arm arm-2"></div>
+                <div class="drone-arm arm-3"></div>
+                <div class="drone-arm arm-4"></div>
+                <div class="drone-rotor rotor-1"></div>
+                <div class="drone-rotor rotor-2"></div>
+                <div class="drone-rotor rotor-3"></div>
+                <div class="drone-rotor rotor-4"></div>
+                
+                <!-- Volumetric searchlight projection cone sweeping over ground -->
+                <div class="drone-searchlight-cone" style="background: linear-gradient(to bottom, ${cfg.color}50, ${cfg.color}00);"></div>
+              </div>
+            </div>`,
+            iconSize: [60, 60]
+          });
+
+          // Draw/Update marker in Leaflet
+          if (droneMarkersRef.current[i]) {
+            droneMarkersRef.current[i].setLatLng([lat, lng]);
+            droneMarkersRef.current[i].setIcon(droneIcon);
+          } else {
+            droneMarkersRef.current[i] = L.marker([lat, lng], { icon: droneIcon }).addTo(map);
+          }
+
+          // 3. Draw glowing laser strike lines tracking target in terminal engagement
+          if (phase === 'engagement') {
+            if (lasersRef.current[i]) {
+              lasersRef.current[i].setLatLngs([[lat, lng], [targetAnim.lat, targetAnim.lng]]);
+            } else {
+              lasersRef.current[i] = L.polyline([[lat, lng], [targetAnim.lat, targetAnim.lng]], {
+                color: '#ff1a2e',
+                weight: i.toString() === '1' ? 4 : 2, // Beta strike drone gets heavy center stream
+                opacity: 0.9,
+                className: 'tactical-laser-strike'
+              }).addTo(map);
+            }
+          } else {
+            if (lasersRef.current[i]) {
+              lasersRef.current[i].remove();
+              lasersRef.current[i] = null;
+            }
+          }
+        });
+      } else {
+        // Reset progress counters and remove indicators on standby
+        entryProgressRef.current = 0;
+        droneMarkersRef.current.forEach((m, idx) => {
+          if (m) {
+            m.remove();
+            droneMarkersRef.current[idx] = null;
+          }
+        });
+        lasersRef.current.forEach((l, idx) => {
+          if (l) {
+            l.remove();
+            lasersRef.current[idx] = null;
+          }
+        });
+      }
+
+      // 4. Draw Impact thermal bloom shockwave
+      if (phase === 'impact') {
+        impactPulseRef.current = Math.min(impactPulseRef.current + 0.012, 1.0);
+        const impactPulse = impactPulseRef.current;
+        const radiusMeters = impactPulse * 160;
+        const opacity = 1.0 - impactPulse;
+
+        if (impactCircleRef.current) {
+          impactCircleRef.current.setLatLng([targetAnim.lat, targetAnim.lng]);
+          impactCircleRef.current.setRadius(radiusMeters);
+          impactCircleRef.current.setStyle({
+            opacity: opacity,
+            fillOpacity: opacity * 0.4
+          });
+        } else {
+          impactCircleRef.current = L.circle([targetAnim.lat, targetAnim.lng], {
+            radius: radiusMeters,
+            color: '#ff1a2e',
+            fillColor: '#ff1a2e',
+            fillOpacity: opacity * 0.4,
+            weight: 2,
+            opacity: opacity,
+            className: 'impact-shockwave-ring'
+          }).addTo(map);
+        }
+
+        // Fullscreen thermal flash burst
+        if (screenFlashRef.current) {
+          if (impactPulse < 0.12) {
+            screenFlashRef.current.style.opacity = '1.0';
+            screenFlashRef.current.style.display = 'block';
+          } else {
+            screenFlashRef.current.style.opacity = '0.0';
+            screenFlashRef.current.style.transition = 'opacity 0.6s ease-out';
+          }
+        }
+      } else {
+        if (impactCircleRef.current) {
+          impactCircleRef.current.remove();
+          impactCircleRef.current = null;
+        }
+        if (screenFlashRef.current) {
+          screenFlashRef.current.style.display = 'none';
+          screenFlashRef.current.style.opacity = '0';
+        }
+      }
+
+      animFrameId.current = requestAnimationFrame(tick);
+    };
+
+    animFrameId.current = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(animFrameId.current);
+    };
+  }, [phase, activeScenario, targetCoords, viewMode, isCar]);
 
   return (
-    <div className="w-full h-full block bg-[#050a12] overflow-hidden" style={{ perspective: '1000px' }}>
+    <div className="w-full h-full block bg-[#050a12] overflow-hidden relative" style={{ perspective: '1000px' }}>
       <div
         ref={mapContainerRef}
         className="w-full h-full block leaflet-tilt-map"
@@ -905,6 +1100,12 @@ function LeafletSatellite({ className }: { className?: string }) {
           transformStyle: 'preserve-3d',
           transition: 'transform 1.2s ease-in-out',
         }}
+      />
+      {/* Dynamic thermal flash overlay */}
+      <div
+        ref={screenFlashRef}
+        className="absolute inset-0 bg-white pointer-events-none z-[9999]"
+        style={{ display: 'none', opacity: 0 }}
       />
     </div>
   );
