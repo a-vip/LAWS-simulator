@@ -17,17 +17,9 @@ if %errorlevel% equ 0 (
     timeout /t 5 > nul
 )
 
-:: Launch borderless native desktop App Window (prioritize Chrome as requested, fallback to Edge)
-if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" (
-    echo [INFO] Launching borderless Chrome window...
-    start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" --app=http://127.0.0.1:3000
-) else if exist "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" (
-    echo [INFO] Launching borderless Chrome window...
-    start "" "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --app=http://127.0.0.1:3000
-) else (
-    echo [INFO] Chrome not found. Falling back to borderless Edge window...
-    start "" "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" --app=http://127.0.0.1:3000
-)
+:: Launch in default browser as requested
+echo [INFO] Opening in default web browser...
+start http://localhost:3000
 
 echo [INFO] App launched successfully!
 timeout /t 3 > nul
