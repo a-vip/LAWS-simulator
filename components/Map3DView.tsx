@@ -679,6 +679,38 @@ function CanvasFallback({ className, spectralMode }: { className?: string; spect
   );
 }
 
+// Dynamic target coordinate trajectory and model type based on the active phase
+function getTargetState(phase: string, scenarioId: string) {
+  const defaultCoords = { lat: 15.3694, lng: 44.1918 };
+  
+  if (scenarioId !== 'pattern-of-life') {
+    return { coords: defaultCoords, isCar: false };
+  }
+
+  // Cairo Scenario: Walking to street, boarding a vehicle, driving down Ring Road
+  switch (phase) {
+    case 'idle':
+    case 'scanning':
+    case 'target_acquired':
+      return { coords: { lat: 15.3694, lng: 44.1918 }, isCar: false }; // Compound
+    case 'tracking':
+      return { coords: { lat: 15.3697, lng: 44.1915 }, isCar: false }; // Walking out
+    case 'confidence_building':
+      return { coords: { lat: 15.3700, lng: 44.1912 }, isCar: false }; // Approaching Ring Road
+    case 'alert_threshold':
+    case 'authorization_pending':
+    case 'authorized':
+      return { coords: { lat: 15.3702, lng: 44.1908 }, isCar: true };  // Boarding car, engine start
+    case 'drone_dispatched':
+      return { coords: { lat: 15.3700, lng: 44.1880 }, isCar: true };  // Speeding down Ring Road A70
+    case 'engagement':
+    case 'impact':
+    case 'assessment':
+    default:
+      return { coords: { lat: 15.3698, lng: 44.1860 }, isCar: true };  // Impact coordinate!
+  }
+}
+
 // Dynamic Leaflet-based Google Satellite view component
 function LeafletSatellite({ className }: { className?: string }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -687,6 +719,9 @@ function LeafletSatellite({ className }: { className?: string }) {
   const droneMarkerRef = useRef<any>(null);
   const { activeScenario, viewMode, dronePosition, phase } = useSimulationStore();
   const [loaded, setLoaded] = useState(false);
+
+  const scenarioId = activeScenario?.id ?? '';
+  const { coords: targetCoords, isCar } = getTargetState(phase, scenarioId);
 
   // Dynamic injection of Leaflet CSS & JS to bypass Next.js SSR build errors
   useEffect(() => {
@@ -723,7 +758,7 @@ function LeafletSatellite({ className }: { className?: string }) {
       mapRef.current = null;
     }
 
-    const center = activeScenario?.location ?? { lat: 20, lng: 10 };
+    const center = activeScenario ? targetCoords : { lat: 20, lng: 10 };
     const zoom = activeScenario ? (viewMode === 'drone' ? 18 : 16) : 3;
 
     const map = L.map(mapContainerRef.current, {
@@ -744,21 +779,34 @@ function LeafletSatellite({ className }: { className?: string }) {
       const customIcon = L.divIcon({
         className: 'custom-gps-reticle',
         html: `<div style="position: relative; width: 120px; height: 120px; left: -60px; top: -60px; display: flex; align-items: center; justify-content: center; perspective: 600px; transform-style: preserve-3d;">
-          <!-- Holographic 3D Building Target Compound Structure Model -->
-          <div class="tactical-3d-building" style="position: absolute; width: 36px; height: 36px; transform-style: preserve-3d; transform: translateZ(10px) rotateX(32deg) rotateY(25deg);">
-            <!-- Front wall -->
-            <div class="building-wall" style="width: 36px; height: 20px; transform: translateZ(18px);"></div>
-            <!-- Back wall -->
-            <div class="building-wall" style="width: 36px; height: 20px; transform: translateZ(-18px) rotateY(180deg);"></div>
-            <!-- Left wall -->
-            <div class="building-wall" style="width: 36px; height: 20px; transform: rotateY(-90deg) translateZ(18px);"></div>
-            <!-- Right wall -->
-            <div class="building-wall" style="width: 36px; height: 20px; transform: rotateY(90deg) translateZ(18px);"></div>
-            <!-- Roof -->
-            <div class="building-wall" style="width: 36px; height: 36px; transform: rotateX(90deg) translateZ(10px); background: rgba(255,26,46,0.18);"></div>
-          </div>
-          <!-- 3D rotating cube target bounding box wrapper -->
-          <div class="tactical-3d-scanner" style="position: absolute;">
+          <!-- 3D Model: either holographic compound or wireframe target vehicle -->
+          ${isCar ? `
+            <!-- Volumetric CSS 3D Car Model (Standing upright via opposite rotation) -->
+            <div class="tactical-3d-car" style="position: absolute; width: 36px; height: 20px; transform-style: preserve-3d; transform: rotateX(-50deg) rotateY(15deg) rotateZ(0deg);">
+              <div class="car-body-main"></div>
+              <div class="car-cabin"></div>
+              <div class="car-wheel" style="left: 4px; bottom: -4px;"></div>
+              <div class="car-wheel" style="right: 4px; bottom: -4px;"></div>
+              <div class="car-wheel" style="left: 4px; top: -4px;"></div>
+              <div class="car-wheel" style="right: 4px; top: -4px;"></div>
+            </div>
+          ` : `
+            <!-- Holographic 3D Building Target Compound Structure Model (Standing upright) -->
+            <div class="tactical-3d-building" style="position: absolute; width: 36px; height: 36px; transform-style: preserve-3d; transform: rotateX(-50deg) rotateY(25deg) rotateZ(0deg);">
+              <!-- Front wall -->
+              <div class="building-wall" style="width: 36px; height: 20px; transform: translateZ(18px);"></div>
+              <!-- Back wall -->
+              <div class="building-wall" style="width: 36px; height: 20px; transform: translateZ(-18px) rotateY(180deg);"></div>
+              <!-- Left wall -->
+              <div class="building-wall" style="width: 36px; height: 20px; transform: rotateY(-90deg) translateZ(18px);"></div>
+              <!-- Right wall -->
+              <div class="building-wall" style="width: 36px; height: 20px; transform: rotateY(90deg) translateZ(18px);"></div>
+              <!-- Roof -->
+              <div class="building-wall" style="width: 36px; height: 36px; transform: rotateX(90deg) translateZ(10px); background: rgba(255,26,46,0.18);"></div>
+            </div>
+          `}
+          <!-- 3D rotating cube target bounding box wrapper (Opposite rotation to map) -->
+          <div class="tactical-3d-scanner" style="position: absolute; transform: rotateX(-50deg) rotateZ(0deg);">
             <div class="tactical-3d-face" style="transform: translateZ(28px);"></div>
             <div class="tactical-3d-face" style="transform: translateZ(-28px) rotateY(180deg);"></div>
             <div class="tactical-3d-face" style="transform: rotateY(-90deg) translateZ(28px);"></div>
@@ -790,19 +838,19 @@ function LeafletSatellite({ className }: { className?: string }) {
         droneMarkerRef.current = null;
       }
     };
-  }, [loaded, activeScenario]);
+  }, [loaded, activeScenario, isCar]);
 
   // Handle dynamic map camera pan/zoom on updates
   useEffect(() => {
     if (!mapRef.current || !activeScenario) return;
-    const center = activeScenario.location;
+    const center = targetCoords;
     const zoom = viewMode === 'drone' ? 18 : 16;
     mapRef.current.setView([center.lat, center.lng], zoom, { animate: true });
     
     if (markerRef.current) {
       markerRef.current.setLatLng([center.lat, center.lng]);
     }
-  }, [viewMode, activeScenario]);
+  }, [viewMode, activeScenario, targetCoords]);
 
   // Update Drone Marker dynamically as it flies across the map
   useEffect(() => {
@@ -818,8 +866,8 @@ function LeafletSatellite({ className }: { className?: string }) {
       const droneIcon = L.divIcon({
         className: 'custom-drone-icon',
         html: `<div style="position: relative; width: 60px; height: 60px; left: -30px; top: -30px; display: flex; align-items: center; justify-content: center; perspective: 600px; transform-style: preserve-3d; z-index: 5000;">
-          <!-- 3D quadcopter drone model with rotating rotors -->
-          <div class="tactical-3d-drone">
+          <!-- 3D quadcopter drone model with rotating rotors (Opposite tilt to stand upright) -->
+          <div class="tactical-3d-drone" style="transform: rotateX(-50deg) rotateZ(0deg);">
             <div class="drone-body"></div>
             <div class="drone-arm arm-1"></div>
             <div class="drone-arm arm-2"></div>
@@ -848,10 +896,17 @@ function LeafletSatellite({ className }: { className?: string }) {
   }, [phase, dronePosition, activeScenario]);
 
   return (
-    <div
-      ref={mapContainerRef}
-      className={clsx('w-full h-full block bg-[#050a12]', className)}
-    />
+    <div className="w-full h-full block bg-[#050a12] overflow-hidden" style={{ perspective: '1000px' }}>
+      <div
+        ref={mapContainerRef}
+        className="w-full h-full block leaflet-tilt-map"
+        style={{
+          transform: 'rotateX(52deg) rotateZ(-6deg) scale(1.45)',
+          transformStyle: 'preserve-3d',
+          transition: 'transform 1.2s ease-in-out',
+        }}
+      />
+    </div>
   );
 }
 

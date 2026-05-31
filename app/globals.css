@@ -220,6 +220,64 @@ gmp-map-3d-marker {
 .drone-rotor.rotor-3 { left: -3px; bottom: 8px; }
 .drone-rotor.rotor-4 { right: -3px; bottom: 8px; }
 
+/* Cinematic Tilted Leaflet Map transform resets */
+.leaflet-tilt-map {
+  transform-style: preserve-3d !important;
+}
+
+/* Ensure Leaflet panes preserve 3D stacking contexts */
+.leaflet-pane,
+.leaflet-layer,
+.leaflet-marker-pane,
+.leaflet-marker-icon {
+  transform-style: preserve-3d !important;
+}
+
+/* Volumetric CSS 3D Car Bounding Bounding Model */
+.tactical-3d-car {
+  transform-style: preserve-3d;
+  animation: rotateBuilding 15s linear infinite; /* Dynamic slow rotation loops */
+}
+
+.car-body-main {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 36px;
+  height: 20px;
+  border: 1px solid #ffaa00;
+  background-color: rgba(255, 170, 0, 0.08);
+  box-shadow: inset 0 0 8px rgba(255, 170, 0, 0.25);
+  transform-style: preserve-3d;
+  transform: translateZ(5px);
+}
+
+.car-cabin {
+  position: absolute;
+  left: 8px;
+  top: 3px;
+  width: 20px;
+  height: 14px;
+  border: 1px solid #ffaa00;
+  background-color: rgba(255, 170, 0, 0.16);
+  box-shadow: inset 0 0 5px rgba(255, 170, 0, 0.3);
+  transform-style: preserve-3d;
+  transform: translateZ(10px);
+}
+
+.car-wheel {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1px solid #ffaa00;
+  border-radius: 50%;
+  background-color: #050a12;
+  box-shadow: 0 0 4px #ffaa00;
+  transform-style: preserve-3d;
+  transform: translateZ(0px) rotateY(90deg);
+}
+
+
 
 
 
