@@ -84,3 +84,12 @@ noscript {
   background: #050508;
   font-size: 14px;
 }
+
+/* Google Maps 3D Custom Elements Display styling to prevent height/width collapsing */
+gmp-map-3d,
+gmp-map-3d-marker {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
