@@ -17,9 +17,9 @@ if %errorlevel% equ 0 (
     timeout /t 5 > nul
 )
 
-:: Launch borderless native desktop App Window using Microsoft Edge (installed on all Windows systems)
+:: Launch borderless native desktop App Window using Microsoft Edge (absolute path for guaranteed execution)
 echo [INFO] Launching borderless desktop window...
-start msedge --app=http://localhost:3000
+start "" "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" --app=http://127.0.0.1:3000
 
 echo [INFO] App launched successfully!
 timeout /t 3 > nul
