@@ -679,6 +679,111 @@ function CanvasFallback({ className, spectralMode }: { className?: string; spect
   );
 }
 
+// Dynamic Leaflet-based Google Satellite view component
+function LeafletSatellite({ className }: { className?: string }) {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const { activeScenario, viewMode } = useSimulationStore();
+  const [loaded, setLoaded] = useState(false);
+
+  // Dynamic injection of Leaflet CSS & JS to bypass Next.js SSR build errors
+  useEffect(() => {
+    if ((window as any).L) {
+      setLoaded(true);
+      return;
+    }
+
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link');
+      link.id = 'leaflet-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.async = true;
+    script.onload = () => setLoaded(true);
+    document.head.appendChild(script);
+  }, []);
+
+  // Initialize Map
+  useEffect(() => {
+    if (!loaded || !mapContainerRef.current) return;
+
+    const L = (window as any).L;
+    if (!L) return;
+
+    // Remove any previous map instance to prevent double-inits
+    if (mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+    }
+
+    const center = activeScenario?.location ?? { lat: 20, lng: 10 };
+    const zoom = activeScenario ? (viewMode === 'drone' ? 18 : 16) : 3;
+
+    const map = L.map(mapContainerRef.current, {
+      center: [center.lat, center.lng],
+      zoom: zoom,
+      zoomControl: false,
+      attributionControl: false,
+    });
+
+    // Use Google Satellite/Hybrid tile maps for maximum photorealism with labels
+    L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+    }).addTo(map);
+
+    // Custom tactical red pulsing GPS reticle over the target
+    if (activeScenario) {
+      const customIcon = L.divIcon({
+        className: 'custom-gps-reticle',
+        html: `<div style="position: relative; width: 32px; height: 32px; left: -16px; top: -16px; display: flex; align-items: center; justify-content: center;">
+          <div style="position: absolute; width: 24px; height: 24px; border: 2px solid #ff1a2e; border-radius: 50%; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+          <div style="position: absolute; width: 16px; height: 16px; border: 1px solid #ff1a2e; border-radius: 50%;"></div>
+          <div style="position: absolute; width: 6px; height: 6px; background-color: #ff1a2e; border-radius: 50%;"></div>
+        </div>`,
+        iconSize: [32, 32]
+      });
+
+      const marker = L.marker([center.lat, center.lng], { icon: customIcon }).addTo(map);
+      markerRef.current = marker;
+    }
+
+    mapRef.current = map;
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [loaded, activeScenario]);
+
+  // Handle dynamic map camera pan/zoom on updates
+  useEffect(() => {
+    if (!mapRef.current || !activeScenario) return;
+    const center = activeScenario.location;
+    const zoom = viewMode === 'drone' ? 18 : 16;
+    mapRef.current.setView([center.lat, center.lng], zoom, { animate: true });
+    
+    if (markerRef.current) {
+      markerRef.current.setLatLng([center.lat, center.lng]);
+    }
+  }, [viewMode, activeScenario]);
+
+  return (
+    <div
+      ref={mapContainerRef}
+      className={clsx('w-full h-full block bg-[#050a12]', className)}
+    />
+  );
+}
+
 // Google Maps 3D view component
 function GoogleMap3D({ className, onError }: { className?: string; onError?: () => void }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -826,9 +931,7 @@ export function Map3DView({ className }: { className?: string }) {
   );
   const [googleFailed, setGoogleFailed] = useState(false);
   const [spectralMode, setSpectralMode] = useState(false);
-  const [mapSource, setMapSource] = useState<'google' | 'canvas'>(
-    hasGoogleKey ? 'google' : 'canvas'
-  );
+  const [mapSource, setMapSource] = useState<'google' | 'leaflet' | 'canvas'>('leaflet');
 
   return (
     <div className={clsx(
@@ -836,10 +939,15 @@ export function Map3DView({ className }: { className?: string }) {
       spectralMode && 'filter sepia(0.2) hue-rotate(85deg) brightness(1.1) contrast(1.2)',
       className
     )}>
-      {mapSource === 'canvas' || googleFailed ? (
+      {mapSource === 'canvas' ? (
         <CanvasFallback spectralMode={spectralMode} />
+      ) : mapSource === 'google' && !googleFailed ? (
+        <GoogleMap3D onError={() => {
+          setGoogleFailed(true);
+          setMapSource('leaflet');
+        }} />
       ) : (
-        <GoogleMap3D onError={() => setGoogleFailed(true)} />
+        <LeafletSatellite />
       )}
       
       {/* Dynamic Tactical Overlay HUD */}
@@ -866,8 +974,8 @@ function MapHUD({
 }: { 
   spectralMode: boolean; 
   setSpectralMode: (v: boolean) => void;
-  mapSource: 'google' | 'canvas';
-  setMapSource: (s: 'google' | 'canvas') => void;
+  mapSource: 'google' | 'leaflet' | 'canvas';
+  setMapSource: (s: 'google' | 'leaflet' | 'canvas') => void;
   hasGoogleKey: boolean;
   googleFailed: boolean;
 }) {
@@ -911,8 +1019,8 @@ function MapHUD({
       {/* Bottom Center interactive controls */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-terminal-panel/90 border border-terminal-border px-3 py-1.5 rounded shadow-2xl font-mono text-[9px] z-10 pointer-events-auto">
           {/* Sensor Feed Switch */}
-          {hasGoogleKey && !googleFailed && (
-            <div className="flex items-center border border-terminal-border rounded overflow-hidden">
+          <div className="flex items-center border border-terminal-border rounded overflow-hidden">
+            {hasGoogleKey && !googleFailed && (
               <button
                 onClick={() => setMapSource('google')}
                 className={clsx(
@@ -923,18 +1031,29 @@ function MapHUD({
               >
                 Google 3D
               </button>
-              <button
-                onClick={() => setMapSource('canvas')}
-                className={clsx(
-                  'px-2.5 py-1 font-bold uppercase transition-all border-l border-terminal-border',
-                  mapSource === 'canvas' ? 'bg-terminal-green text-terminal-bg' : 'text-terminal-text-dim hover:text-terminal-text'
-                )}
-                title="Tactical Canvas 3D Emulation Feed"
-              >
-                Tactical 3D
-              </button>
-            </div>
-          )}
+            )}
+            <button
+              onClick={() => setMapSource('leaflet')}
+              className={clsx(
+                'px-2.5 py-1 font-bold uppercase transition-all',
+                hasGoogleKey && !googleFailed && 'border-l border-terminal-border',
+                mapSource === 'leaflet' ? 'bg-terminal-green text-terminal-bg' : 'text-terminal-text-dim hover:text-terminal-text'
+              )}
+              title="High-Resolution Satellite Feed"
+            >
+              Satellite
+            </button>
+            <button
+              onClick={() => setMapSource('canvas')}
+              className={clsx(
+                'px-2.5 py-1 font-bold uppercase transition-all border-l border-terminal-border',
+                mapSource === 'canvas' ? 'bg-terminal-green text-terminal-bg' : 'text-terminal-text-dim hover:text-terminal-text'
+              )}
+              title="Tactical Canvas 3D Emulation Feed"
+            >
+              Tactical 3D
+            </button>
+          </div>
 
           {/* Zoom Toggle */}
           <div className="flex items-center border border-terminal-border rounded overflow-hidden">

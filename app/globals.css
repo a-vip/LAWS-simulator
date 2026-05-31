@@ -93,3 +93,20 @@ gmp-map-3d-marker {
   height: 100% !important;
 }
 
+/* Leaflet Container & Tactical Satellite imagery styling */
+.leaflet-container {
+  background: #050a12 !important;
+  font-family: var(--font-mono), monospace !important;
+  border-radius: 4px;
+}
+
+.leaflet-tile {
+  filter: brightness(0.6) contrast(1.4) saturate(0.85) hue-rotate(-2deg);
+}
+
+.leaflet-marker-icon {
+  background: none !important;
+  border: none !important;
+}
+
+
