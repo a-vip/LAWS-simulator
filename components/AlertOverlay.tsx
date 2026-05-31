@@ -23,7 +23,7 @@ export function AlertOverlay() {
   );
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 font-mono">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 font-mono">
       {/* Red border flash */}
       <div className="absolute inset-0 border-4 border-terminal-red animate-pulse-red pointer-events-none" />
 

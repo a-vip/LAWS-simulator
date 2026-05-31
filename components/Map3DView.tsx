@@ -738,16 +738,26 @@ function LeafletSatellite({ className }: { className?: string }) {
       subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(map);
 
-    // Custom tactical red pulsing GPS reticle over the target
+    // Custom tactical 3D rotating scanner cube and target sweeps
     if (activeScenario) {
       const customIcon = L.divIcon({
         className: 'custom-gps-reticle',
-        html: `<div style="position: relative; width: 32px; height: 32px; left: -16px; top: -16px; display: flex; align-items: center; justify-content: center;">
-          <div style="position: absolute; width: 24px; height: 24px; border: 2px solid #ff1a2e; border-radius: 50%; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-          <div style="position: absolute; width: 16px; height: 16px; border: 1px solid #ff1a2e; border-radius: 50%;"></div>
-          <div style="position: absolute; width: 6px; height: 6px; background-color: #ff1a2e; border-radius: 50%;"></div>
+        html: `<div style="position: relative; width: 100px; height: 100px; left: -50px; top: -50px; display: flex; align-items: center; justify-content: center; perspective: 600px; transform-style: preserve-3d;">
+          <!-- 3D rotating cube target bounding box -->
+          <div class="tactical-3d-scanner">
+            <div class="tactical-3d-face" style="transform: translateZ(24px);"></div>
+            <div class="tactical-3d-face" style="transform: translateZ(-24px) rotateY(180deg);"></div>
+            <div class="tactical-3d-face" style="transform: rotateY(-90deg) translateZ(24px);"></div>
+            <div class="tactical-3d-face" style="transform: rotateY(90deg) translateZ(24px);"></div>
+            <div class="tactical-3d-face" style="transform: rotateX(90deg) translateZ(24px);"></div>
+            <div class="tactical-3d-face" style="transform: rotateX(-90deg) translateZ(24px);"></div>
+          </div>
+          <!-- 2D pulsing radar rings for target lock visual sweeps -->
+          <div style="position: absolute; width: 80px; height: 80px; border: 1.5px dashed rgba(255, 26, 46, 0.4); border-radius: 50%; animation: spin 10s linear infinite;"></div>
+          <div style="position: absolute; width: 50px; height: 50px; border: 1px solid rgba(255, 26, 46, 0.6); border-radius: 50%; animation: ping 2s infinite;"></div>
+          <div style="position: absolute; width: 10px; height: 10px; background-color: #ff1a2e; border-radius: 50%; box-shadow: 0 0 12px 4px #ff1a2e; animation: pulse 1s infinite;"></div>
         </div>`,
-        iconSize: [32, 32]
+        iconSize: [100, 100]
       });
 
       const marker = L.marker([center.lat, center.lng], { icon: customIcon }).addTo(map);
