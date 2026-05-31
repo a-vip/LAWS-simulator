@@ -684,7 +684,8 @@ function LeafletSatellite({ className }: { className?: string }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
-  const { activeScenario, viewMode } = useSimulationStore();
+  const droneMarkerRef = useRef<any>(null);
+  const { activeScenario, viewMode, dronePosition, phase } = useSimulationStore();
   const [loaded, setLoaded] = useState(false);
 
   // Dynamic injection of Leaflet CSS & JS to bypass Next.js SSR build errors
@@ -738,26 +739,39 @@ function LeafletSatellite({ className }: { className?: string }) {
       subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(map);
 
-    // Custom tactical 3D rotating scanner cube and target sweeps
+    // Custom tactical 3D rotating building compound, scanner, and target sweeps
     if (activeScenario) {
       const customIcon = L.divIcon({
         className: 'custom-gps-reticle',
-        html: `<div style="position: relative; width: 100px; height: 100px; left: -50px; top: -50px; display: flex; align-items: center; justify-content: center; perspective: 600px; transform-style: preserve-3d;">
-          <!-- 3D rotating cube target bounding box -->
-          <div class="tactical-3d-scanner">
-            <div class="tactical-3d-face" style="transform: translateZ(24px);"></div>
-            <div class="tactical-3d-face" style="transform: translateZ(-24px) rotateY(180deg);"></div>
-            <div class="tactical-3d-face" style="transform: rotateY(-90deg) translateZ(24px);"></div>
-            <div class="tactical-3d-face" style="transform: rotateY(90deg) translateZ(24px);"></div>
-            <div class="tactical-3d-face" style="transform: rotateX(90deg) translateZ(24px);"></div>
-            <div class="tactical-3d-face" style="transform: rotateX(-90deg) translateZ(24px);"></div>
+        html: `<div style="position: relative; width: 120px; height: 120px; left: -60px; top: -60px; display: flex; align-items: center; justify-content: center; perspective: 600px; transform-style: preserve-3d;">
+          <!-- Holographic 3D Building Target Compound Structure Model -->
+          <div class="tactical-3d-building" style="position: absolute; width: 36px; height: 36px; transform-style: preserve-3d; transform: translateZ(10px) rotateX(32deg) rotateY(25deg);">
+            <!-- Front wall -->
+            <div class="building-wall" style="width: 36px; height: 20px; transform: translateZ(18px);"></div>
+            <!-- Back wall -->
+            <div class="building-wall" style="width: 36px; height: 20px; transform: translateZ(-18px) rotateY(180deg);"></div>
+            <!-- Left wall -->
+            <div class="building-wall" style="width: 36px; height: 20px; transform: rotateY(-90deg) translateZ(18px);"></div>
+            <!-- Right wall -->
+            <div class="building-wall" style="width: 36px; height: 20px; transform: rotateY(90deg) translateZ(18px);"></div>
+            <!-- Roof -->
+            <div class="building-wall" style="width: 36px; height: 36px; transform: rotateX(90deg) translateZ(10px); background: rgba(255,26,46,0.18);"></div>
+          </div>
+          <!-- 3D rotating cube target bounding box wrapper -->
+          <div class="tactical-3d-scanner" style="position: absolute;">
+            <div class="tactical-3d-face" style="transform: translateZ(28px);"></div>
+            <div class="tactical-3d-face" style="transform: translateZ(-28px) rotateY(180deg);"></div>
+            <div class="tactical-3d-face" style="transform: rotateY(-90deg) translateZ(28px);"></div>
+            <div class="tactical-3d-face" style="transform: rotateY(90deg) translateZ(28px);"></div>
+            <div class="tactical-3d-face" style="transform: rotateX(90deg) translateZ(28px);"></div>
+            <div class="tactical-3d-face" style="transform: rotateX(-90deg) translateZ(28px);"></div>
           </div>
           <!-- 2D pulsing radar rings for target lock visual sweeps -->
-          <div style="position: absolute; width: 80px; height: 80px; border: 1.5px dashed rgba(255, 26, 46, 0.4); border-radius: 50%; animation: spin 10s linear infinite;"></div>
-          <div style="position: absolute; width: 50px; height: 50px; border: 1px solid rgba(255, 26, 46, 0.6); border-radius: 50%; animation: ping 2s infinite;"></div>
+          <div style="position: absolute; width: 90px; height: 90px; border: 1.5px dashed rgba(255, 26, 46, 0.4); border-radius: 50%; animation: spin 10s linear infinite;"></div>
+          <div style="position: absolute; width: 60px; height: 60px; border: 1px solid rgba(255, 26, 46, 0.6); border-radius: 50%; animation: ping 2s infinite;"></div>
           <div style="position: absolute; width: 10px; height: 10px; background-color: #ff1a2e; border-radius: 50%; box-shadow: 0 0 12px 4px #ff1a2e; animation: pulse 1s infinite;"></div>
         </div>`,
-        iconSize: [100, 100]
+        iconSize: [120, 120]
       });
 
       const marker = L.marker([center.lat, center.lng], { icon: customIcon }).addTo(map);
@@ -770,6 +784,10 @@ function LeafletSatellite({ className }: { className?: string }) {
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+      }
+      if (droneMarkerRef.current) {
+        droneMarkerRef.current.remove();
+        droneMarkerRef.current = null;
       }
     };
   }, [loaded, activeScenario]);
@@ -785,6 +803,49 @@ function LeafletSatellite({ className }: { className?: string }) {
       markerRef.current.setLatLng([center.lat, center.lng]);
     }
   }, [viewMode, activeScenario]);
+
+  // Update Drone Marker dynamically as it flies across the map
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !activeScenario) return;
+
+    const L = (window as any).L;
+    if (!L) return;
+
+    const showDrone = phase === 'drone_dispatched' || phase === 'engagement';
+
+    if (showDrone && dronePosition) {
+      const droneIcon = L.divIcon({
+        className: 'custom-drone-icon',
+        html: `<div style="position: relative; width: 60px; height: 60px; left: -30px; top: -30px; display: flex; align-items: center; justify-content: center; perspective: 600px; transform-style: preserve-3d; z-index: 5000;">
+          <!-- 3D quadcopter drone model with rotating rotors -->
+          <div class="tactical-3d-drone">
+            <div class="drone-body"></div>
+            <div class="drone-arm arm-1"></div>
+            <div class="drone-arm arm-2"></div>
+            <div class="drone-arm arm-3"></div>
+            <div class="drone-arm arm-4"></div>
+            <div class="drone-rotor rotor-1"></div>
+            <div class="drone-rotor rotor-2"></div>
+            <div class="drone-rotor rotor-3"></div>
+            <div class="drone-rotor rotor-4"></div>
+          </div>
+        </div>`,
+        iconSize: [60, 60]
+      });
+
+      if (droneMarkerRef.current) {
+        droneMarkerRef.current.setLatLng([dronePosition.lat, dronePosition.lng]);
+      } else {
+        droneMarkerRef.current = L.marker([dronePosition.lat, dronePosition.lng], { icon: droneIcon }).addTo(map);
+      }
+    } else {
+      if (droneMarkerRef.current) {
+        droneMarkerRef.current.remove();
+        droneMarkerRef.current = null;
+      }
+    }
+  }, [phase, dronePosition, activeScenario]);
 
   return (
     <div
