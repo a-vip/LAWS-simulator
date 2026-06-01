@@ -202,7 +202,22 @@ The simulator does not contain real targeting data, real location intelligence, 
 ---
 
 ## License
-
 MIT — free to use, adapt, and deploy for non-commercial advocacy purposes.
 
 Attribution requested: *"LAWS Simulator — built in support of the Campaign to Stop Killer Robots"*
+
+---
+
+## 👨‍💻 About the Creator
+Designed and engineered by **Avi Perera**.
+*   🌐 **Personal Website**: [aviperera.com](https://aviperera.com)
+*   🚀 **Enterprise Platform**: [sovdash.com](https://sovdash.com) (Sovereign Intel Platform)
+
+---
+
+## 💖 Support the Project
+If this lethal autonomous weapons simulation platform has helped your disarmament campaigns or advocacy education efforts, consider showing your support:
+
+*   ☕ **Buy Me a Coffee**: [buymeacoffee.com/aviperera](https://www.buymeacoffee.com/aviperera)
+*   🎗️ **Patreon**: [patreon.com/aviperera](https://www.patreon.com/aviperera)
+*   ⭐ **GitHub Sponsors**: Star this repository or sponsor directly via [GitHub Sponsors](https://github.com/sponsors/avi-perera)!
