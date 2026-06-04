@@ -118,6 +118,13 @@ function CanvasFallback({ className, spectralMode }: { className?: string; spect
     const draw = () => {
       const w = canvas.offsetWidth || (canvas.width / (window.devicePixelRatio || 1));
       const h = canvas.offsetHeight || (canvas.height / (window.devicePixelRatio || 1));
+
+      // Skip frames where canvas has no size yet (layout not complete)
+      if (w === 0 || h === 0) {
+        animRef.current = requestAnimationFrame(draw);
+        return;
+      }
+
       const cx = w / 2;
       const cy = h / 2;
 
@@ -671,11 +678,13 @@ function CanvasFallback({ className, spectralMode }: { className?: string; spect
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className={clsx('w-full h-full block', className)}
-      style={{ imageRendering: 'pixelated' }}
-    />
+    <div className="absolute inset-0">
+      <canvas
+        ref={canvasRef}
+        className={clsx('w-full h-full block', className)}
+        style={{ imageRendering: 'auto', width: '100%', height: '100%' }}
+      />
+    </div>
   );
 }
 
@@ -1111,17 +1120,38 @@ function LeafletSatellite({ className }: { className?: string }) {
   );
 }
 
-// Google Maps 3D view component
+// Google Maps 3D Photorealistic view component with drone orchestration
 function GoogleMap3D({ className, onError }: { className?: string; onError?: () => void }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
-  const markerRef = useRef<any>(null);
+  const targetMarkerRef = useRef<any>(null);
+  const droneMarkersRef = useRef<any[]>([]);
+  const laserPolylinesRef = useRef<any[]>([]);
+  const impactPolygonRef = useRef<any>(null);
+  const screenFlashRef = useRef<HTMLDivElement>(null);
+  const animFrameRef = useRef<number>(0);
+  const angleRef = useRef<number>(0);
+  const entryProgressRef = useRef<number>(0);
+  const swoopProgressRef = useRef<number>(0);
+  const impactPulseRef = useRef<number>(0);
+  const targetAnimRef = useRef<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
+  const prevPhaseRef = useRef<string>('idle');
+  const apiLoadedRef = useRef(false);
+
   const { activeScenario, phase, viewMode, orbitActive } = useSimulationStore();
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load Google Maps API Key
+  const scenarioId = activeScenario?.id ?? '';
+  const { coords: targetCoords, isCar } = getTargetState(phase, scenarioId);
+
+  // Load Google Maps API via script tag (only once)
   useEffect(() => {
+    if (apiLoadedRef.current) {
+      setLoaded(true);
+      return;
+    }
+
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       setError('no-key');
@@ -1129,125 +1159,469 @@ function GoogleMap3D({ className, onError }: { className?: string; onError?: () 
       return;
     }
 
+    // Check if already loaded
+    if ((window as any).google?.maps?.maps3d) {
+      apiLoadedRef.current = true;
+      setLoaded(true);
+      return;
+    }
+
+    // Check if script already exists
+    if (document.getElementById('gmap3d-script')) {
+      const checkLoaded = setInterval(() => {
+        if ((window as any).google?.maps) {
+          apiLoadedRef.current = true;
+          setLoaded(true);
+          clearInterval(checkLoaded);
+        }
+      }, 200);
+      return () => clearInterval(checkLoaded);
+    }
+
     const script = document.createElement('script');
+    script.id = 'gmap3d-script';
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=beta&libraries=maps3d`;
     script.async = true;
     script.defer = true;
-    script.onload = () => setLoaded(true);
+    script.onload = () => {
+      apiLoadedRef.current = true;
+      setLoaded(true);
+    };
     script.onerror = () => {
       setError('load-failed');
       onError?.();
     };
     document.head.appendChild(script);
-
-    return () => {
-      document.head.removeChild(script);
-    };
   }, [onError]);
 
-  // Initialize Map
+  // Initialize 3D Map with photorealistic tiles
   useEffect(() => {
     if (!loaded || !mapContainerRef.current) return;
 
     const initMap = async () => {
       try {
-        const { Map3DElement, Marker3DElement } = (window as any).google.maps.maps3d;
-        
-        // Standby Globe default parameters: center at Earth coordinates high in orbit
+        const google = (window as any).google;
+        if (!google?.maps) {
+          setError('init-failed');
+          onError?.();
+          return;
+        }
+
+        const { Map3DElement, Marker3DElement } = await google.maps.importLibrary('maps3d');
+
+        // Cleanup old map
+        if (mapRef.current && mapContainerRef.current) {
+          mapContainerRef.current.innerHTML = '';
+          mapRef.current = null;
+        }
+
         const scenario = activeScenario;
         const center = scenario?.location ?? { lat: 20, lng: 10, alt: 0 };
-        const initialRange = scenario ? (viewMode === 'drone' ? 480 : 3500) : 12000000; // 12,000 km space globe!
-        const initialTilt = scenario ? (viewMode === 'drone' ? 62 : 25) : 10;
 
+        // Start from space for cinematic zoom
         const map = new Map3DElement({
           center: { lat: center.lat, lng: center.lng, altitude: center.alt ?? 0 },
-          tilt: initialTilt,
+          tilt: scenario ? 10 : 10,
           heading: scenario?.mapHeading ?? 0,
-          range: initialRange,
+          range: 12000000, // Start at 12,000 km (space view)
         });
 
-        mapContainerRef.current!.innerHTML = ''; // clean container
+        // Critical: Set mode to SATELLITE for photorealistic 3D tiles
+        map.mode = 'SATELLITE';
+
         mapContainerRef.current!.appendChild(map);
         mapRef.current = map;
 
+        // Initialize target animated position
         if (scenario) {
-          const marker = new Marker3DElement({
-            position: { lat: scenario.location.lat, lng: scenario.location.lng, altitude: 0 },
-            label: 'COORDS LOCK',
+          targetAnimRef.current = { lat: scenario.location.lat, lng: scenario.location.lng };
+        }
+
+        // Add target marker
+        if (scenario) {
+          const targetMarker = new Marker3DElement({
+            position: { lat: scenario.location.lat, lng: scenario.location.lng, altitude: 2 },
+            altitudeMode: 'RELATIVE_TO_GROUND',
+            collisionBehavior: 'REQUIRED',
           });
-          map.appendChild(marker);
-          markerRef.current = marker;
+
+          // Custom reticle HTML template
+          const reticleTemplate = document.createElement('template');
+          reticleTemplate.innerHTML = `
+            <div class="gmap3d-target-reticle">
+              <div class="reticle-ring reticle-ring-outer"></div>
+              <div class="reticle-ring reticle-ring-inner"></div>
+              <div class="reticle-crosshair"></div>
+              <div class="reticle-dot"></div>
+              <div class="reticle-label">TARGET LOCK</div>
+            </div>
+          `;
+          targetMarker.append(reticleTemplate.content.cloneNode(true));
+
+          map.append(targetMarker);
+          targetMarkerRef.current = targetMarker;
+        }
+
+        // Cinematic zoom from space to target after map loads
+        if (scenario) {
+          // Allow map to settle then fly
+          setTimeout(() => {
+            if (!mapRef.current) return;
+            const targetRange = viewMode === 'drone' ? 480 : (scenario.mapRange ?? 1200);
+            const targetTilt = viewMode === 'drone' ? 67 : (scenario.mapTilt ?? 55);
+
+            try {
+              mapRef.current.flyCameraTo({
+                endCamera: {
+                  center: { lat: scenario.location.lat, lng: scenario.location.lng, altitude: 0 },
+                  tilt: targetTilt,
+                  heading: scenario.mapHeading ?? 0,
+                  range: targetRange,
+                },
+                durationMillis: 4500,
+              });
+            } catch (e) {
+              // Fallback: set directly
+              try {
+                mapRef.current.center = { lat: scenario.location.lat, lng: scenario.location.lng, altitude: 0 };
+                mapRef.current.tilt = targetTilt;
+                mapRef.current.range = targetRange;
+                mapRef.current.heading = scenario.mapHeading ?? 0;
+              } catch (_e) {}
+            }
+          }, 800);
         }
       } catch (e) {
+        console.error('Google Maps 3D init failed:', e);
         setError('init-failed');
         onError?.();
       }
     };
 
     initMap();
-  }, [loaded, activeScenario, onError]);
 
-  // Cinematic deep-space zoom flies when scenario loaded or viewMode switches
+    return () => {
+      cancelAnimationFrame(animFrameRef.current);
+      // Cleanup drone markers
+      droneMarkersRef.current.forEach(m => { try { m?.remove(); } catch (_) {} });
+      droneMarkersRef.current = [];
+      laserPolylinesRef.current.forEach(l => { try { l?.remove(); } catch (_) {} });
+      laserPolylinesRef.current = [];
+      try { impactPolygonRef.current?.remove(); } catch (_) {}
+      impactPolygonRef.current = null;
+    };
+  }, [loaded, activeScenario]);
+
+  // Phase-driven camera transitions
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !activeScenario) return;
 
-    if (activeScenario) {
-      const { location, mapHeading } = activeScenario;
-      const targetRange = viewMode === 'drone' ? 480 : 3500;
-      const targetTilt = viewMode === 'drone' ? 64 : 22;
+    // Camera parameters per phase
+    const getCameraForPhase = (p: string) => {
+      const loc = activeScenario.location;
+      const baseHeading = activeScenario.mapHeading ?? 0;
+
+      switch (p) {
+        case 'scanning':
+        case 'target_acquired':
+          return { range: viewMode === 'drone' ? 600 : 2000, tilt: viewMode === 'drone' ? 62 : 35, heading: baseHeading };
+        case 'tracking':
+        case 'confidence_building':
+          return { range: viewMode === 'drone' ? 480 : 1200, tilt: viewMode === 'drone' ? 67 : 50, heading: baseHeading + 15 };
+        case 'alert_threshold':
+        case 'authorization_pending':
+        case 'authorized':
+          return { range: viewMode === 'drone' ? 420 : 900, tilt: viewMode === 'drone' ? 70 : 55, heading: baseHeading + 30 };
+        case 'drone_dispatched':
+          return { range: viewMode === 'drone' ? 380 : 800, tilt: viewMode === 'drone' ? 72 : 58, heading: baseHeading + 45 };
+        case 'engagement':
+          return { range: viewMode === 'drone' ? 300 : 600, tilt: 72, heading: baseHeading + 60 };
+        case 'impact':
+          return { range: viewMode === 'drone' ? 250 : 500, tilt: 75, heading: baseHeading + 90 };
+        case 'assessment':
+          return { range: viewMode === 'drone' ? 500 : 1500, tilt: 45, heading: baseHeading + 120 };
+        default:
+          return { range: 1200, tilt: 50, heading: baseHeading };
+      }
+    };
+
+    // Only fly camera on phase change
+    if (phase !== prevPhaseRef.current) {
+      prevPhaseRef.current = phase;
+      const cam = getCameraForPhase(phase);
+      const { coords } = getTargetState(phase, scenarioId);
 
       try {
         mapRef.current.flyCameraTo({
           endCamera: {
-            center: { lat: location.lat, lng: location.lng, altitude: 0 },
-            tilt: targetTilt,
-            heading: mapRef.current.heading ?? mapHeading ?? 0,
-            range: targetRange,
+            center: { lat: coords.lat, lng: coords.lng, altitude: 0 },
+            tilt: cam.tilt,
+            heading: cam.heading,
+            range: cam.range,
           },
-          durationMilliseconds: 3500, // Cinematic 3.5s plunge
-        });
-      } catch (e) {}
-    } else {
-      // Return camera to orbital space view
-      try {
-        mapRef.current.flyCameraTo({
-          endCamera: {
-            center: { lat: 20, lng: 10, altitude: 0 },
-            tilt: 10,
-            heading: 0,
-            range: 12000000,
-          },
-          durationMilliseconds: 2500,
+          durationMillis: phase === 'impact' ? 1500 : 3000,
         });
       } catch (e) {}
     }
-  }, [viewMode, activeScenario]);
+  }, [phase, activeScenario, viewMode, scenarioId]);
 
-  // Autopilot Camera Orbit Rotation loop
+  // View mode camera transition
   useEffect(() => {
-    if (!mapRef.current || !orbitActive) return;
+    if (!mapRef.current || !activeScenario) return;
+
+    const targetRange = viewMode === 'drone' ? 480 : (activeScenario.mapRange ?? 1200);
+    const targetTilt = viewMode === 'drone' ? 67 : (activeScenario.mapTilt ?? 55);
+
+    try {
+      mapRef.current.flyCameraTo({
+        endCamera: {
+          center: { lat: targetCoords.lat, lng: targetCoords.lng, altitude: 0 },
+          tilt: targetTilt,
+          heading: mapRef.current.heading ?? activeScenario.mapHeading ?? 0,
+          range: targetRange,
+        },
+        durationMillis: 2500,
+      });
+    } catch (e) {}
+  }, [viewMode]);
+
+  // Autopilot Camera Orbit using flyCameraAround
+  useEffect(() => {
+    if (!mapRef.current || !orbitActive || !activeScenario) return;
 
     let animId: number;
     const rotate = () => {
       if (mapRef.current) {
-        mapRef.current.heading = (mapRef.current.heading + 0.12) % 360;
+        try {
+          mapRef.current.heading = ((mapRef.current.heading ?? 0) + 0.10) % 360;
+        } catch (_) {}
       }
       animId = requestAnimationFrame(rotate);
     };
 
     animId = requestAnimationFrame(rotate);
     return () => cancelAnimationFrame(animId);
-  }, [orbitActive, loaded]);
+  }, [orbitActive, loaded, activeScenario]);
+
+  // 60FPS Animation loop: Drone orbits, laser strikes, impact effects
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !activeScenario || !loaded) return;
+
+    const google = (window as any).google;
+    if (!google?.maps) return;
+
+    // Reset animation refs on phase change
+    if (phase !== 'engagement') swoopProgressRef.current = 0;
+    if (phase !== 'impact') impactPulseRef.current = 0;
+
+    // Should drones be visible?
+    const shouldShowDrones = phase !== 'idle' && phase !== 'scanning' && phase !== 'assessment';
+
+    const tick = async () => {
+      // 1. LERP target position
+      const anim = targetAnimRef.current;
+      anim.lat += (targetCoords.lat - anim.lat) * 0.04;
+      anim.lng += (targetCoords.lng - anim.lng) * 0.04;
+
+      // Update target marker position
+      if (targetMarkerRef.current) {
+        try {
+          targetMarkerRef.current.position = { lat: anim.lat, lng: anim.lng, altitude: 2 };
+        } catch (_) {}
+      }
+
+      // 2. Animate drones
+      if (shouldShowDrones) {
+        entryProgressRef.current = Math.min(entryProgressRef.current + 0.005, 1.0);
+        angleRef.current = (angleRef.current + 0.008) % (Math.PI * 2);
+
+        if (phase === 'engagement') {
+          swoopProgressRef.current = Math.min(swoopProgressRef.current + 0.008, 0.85);
+        }
+
+        const angle = angleRef.current;
+        const entry = entryProgressRef.current;
+        const swoop = swoopProgressRef.current;
+
+        const droneConfigs = [
+          {
+            startOffset: { lat: 0.006, lng: -0.007 },
+            orbitRadius: 0.0012,
+            orbitSpeed: 1.0,
+            orbitOffset: 0,
+            altitude: 150,
+            color: '#00aaff',
+            label: 'ALPHA'
+          },
+          {
+            startOffset: { lat: -0.007, lng: 0.006 },
+            orbitRadius: 0.0008,
+            orbitSpeed: -1.4,
+            orbitOffset: 2.1,
+            altitude: 100,
+            color: '#ff1a2e',
+            label: 'BETA'
+          },
+          {
+            startOffset: { lat: 0.005, lng: 0.007 },
+            orbitRadius: 0.0015,
+            orbitSpeed: 0.7,
+            orbitOffset: 4.2,
+            altitude: 200,
+            color: '#ffaa00',
+            label: 'GAMMA'
+          }
+        ];
+
+        for (let i = 0; i < droneConfigs.length; i++) {
+          const cfg = droneConfigs[i];
+          const startLat = targetCoords.lat + cfg.startOffset.lat;
+          const startLng = targetCoords.lng + cfg.startOffset.lng;
+
+          const orbitAngle = angle * cfg.orbitSpeed + cfg.orbitOffset;
+          const orbitLat = anim.lat + cfg.orbitRadius * Math.cos(orbitAngle);
+          const orbitLng = anim.lng + cfg.orbitRadius * Math.sin(orbitAngle);
+
+          let droneLat = startLat + (orbitLat - startLat) * entry;
+          let droneLng = startLng + (orbitLng - startLng) * entry;
+
+          // Swoop during engagement
+          if (swoop > 0) {
+            droneLat += (anim.lat - droneLat) * swoop;
+            droneLng += (anim.lng - droneLng) * swoop;
+          }
+
+          // Altitude drops during engagement
+          const droneAlt = phase === 'engagement' ? cfg.altitude * (1 - swoop * 0.6) : cfg.altitude;
+
+          // Create or update drone marker
+          if (!droneMarkersRef.current[i]) {
+            try {
+              const { Marker3DElement } = await google.maps.importLibrary('maps3d');
+              const droneMarker = new Marker3DElement({
+                position: { lat: droneLat, lng: droneLng, altitude: droneAlt },
+                altitudeMode: 'RELATIVE_TO_GROUND',
+                collisionBehavior: 'REQUIRED',
+              });
+
+              const tmpl = document.createElement('template');
+              tmpl.innerHTML = `
+                <div class="gmap3d-drone-marker" style="--drone-color: ${cfg.color};">
+                  <div class="gmap3d-drone-body">
+                    <div class="gmap3d-drone-rotor r1"></div>
+                    <div class="gmap3d-drone-rotor r2"></div>
+                    <div class="gmap3d-drone-rotor r3"></div>
+                    <div class="gmap3d-drone-rotor r4"></div>
+                    <div class="gmap3d-drone-core"></div>
+                    <div class="gmap3d-drone-searchlight"></div>
+                  </div>
+                  <div class="gmap3d-drone-label">${cfg.label}</div>
+                </div>
+              `;
+              droneMarker.append(tmpl.content.cloneNode(true));
+
+              map.append(droneMarker);
+              droneMarkersRef.current[i] = droneMarker;
+            } catch (_) {}
+          } else {
+            try {
+              droneMarkersRef.current[i].position = { lat: droneLat, lng: droneLng, altitude: droneAlt };
+            } catch (_) {}
+          }
+
+          // 3. Laser strike polylines during engagement
+          if (phase === 'engagement') {
+            if (!laserPolylinesRef.current[i]) {
+              try {
+                const { Polyline3DElement } = await google.maps.importLibrary('maps3d');
+                const laser = new Polyline3DElement({
+                  altitudeMode: 'RELATIVE_TO_GROUND',
+                  strokeColor: '#ff1a2e',
+                  strokeWidth: i === 1 ? 6 : 3,
+                });
+                laser.coordinates = [
+                  { lat: droneLat, lng: droneLng, altitude: droneAlt },
+                  { lat: anim.lat, lng: anim.lng, altitude: 2 }
+                ];
+                map.append(laser);
+                laserPolylinesRef.current[i] = laser;
+              } catch (_) {}
+            } else {
+              try {
+                laserPolylinesRef.current[i].coordinates = [
+                  { lat: droneLat, lng: droneLng, altitude: droneAlt },
+                  { lat: anim.lat, lng: anim.lng, altitude: 2 }
+                ];
+              } catch (_) {}
+            }
+          } else {
+            // Remove lasers when not in engagement
+            if (laserPolylinesRef.current[i]) {
+              try { laserPolylinesRef.current[i].remove(); } catch (_) {}
+              laserPolylinesRef.current[i] = null;
+            }
+          }
+        }
+      } else {
+        // Reset when drones shouldn't show
+        entryProgressRef.current = 0;
+        droneMarkersRef.current.forEach((m, idx) => {
+          try { m?.remove(); } catch (_) {}
+          droneMarkersRef.current[idx] = null;
+        });
+        droneMarkersRef.current = [];
+        laserPolylinesRef.current.forEach((l, idx) => {
+          try { l?.remove(); } catch (_) {}
+          laserPolylinesRef.current[idx] = null;
+        });
+        laserPolylinesRef.current = [];
+      }
+
+      // 4. Impact thermal flash
+      if (phase === 'impact') {
+        impactPulseRef.current = Math.min(impactPulseRef.current + 0.01, 1.0);
+        if (screenFlashRef.current) {
+          if (impactPulseRef.current < 0.12) {
+            screenFlashRef.current.style.opacity = '0.95';
+            screenFlashRef.current.style.display = 'block';
+          } else {
+            screenFlashRef.current.style.opacity = '0.0';
+            screenFlashRef.current.style.transition = 'opacity 0.8s ease-out';
+          }
+        }
+      } else {
+        if (screenFlashRef.current) {
+          screenFlashRef.current.style.display = 'none';
+          screenFlashRef.current.style.opacity = '0';
+        }
+      }
+
+      animFrameRef.current = requestAnimationFrame(tick);
+    };
+
+    animFrameRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, [phase, activeScenario, loaded, targetCoords, viewMode, isCar, scenarioId]);
 
   if (error === 'no-key' || error === 'load-failed' || error === 'init-failed') {
     return null;
   }
 
   return (
-    <div
-      ref={mapContainerRef}
-      className={clsx('w-full h-full block', className)}
-    />
+    <div className={clsx('w-full h-full block relative', className)}>
+      <div
+        ref={mapContainerRef}
+        className="w-full h-full block"
+        style={{ minHeight: '100%' }}
+      />
+      {/* Thermal flash overlay */}
+      <div
+        ref={screenFlashRef}
+        className="absolute inset-0 bg-white pointer-events-none z-[9999]"
+        style={{ display: 'none', opacity: 0 }}
+      />
+    </div>
   );
 }
 
@@ -1258,11 +1632,13 @@ export function Map3DView({ className }: { className?: string }) {
   );
   const [googleFailed, setGoogleFailed] = useState(false);
   const [spectralMode, setSpectralMode] = useState(false);
-  const [mapSource, setMapSource] = useState<'google' | 'leaflet' | 'canvas'>('leaflet');
+  // Default to canvas (Tactical 3D) — always works, no API key required.
+  // User can switch to Google 3D or Satellite via the map controls.
+  const [mapSource, setMapSource] = useState<'google' | 'leaflet' | 'canvas'>('canvas');
 
   return (
     <div className={clsx(
-      'relative bg-[#0a1520] overflow-hidden flex-1 transition-all duration-500 border border-terminal-border rounded',
+      'relative bg-[#0a1520] overflow-hidden flex-1 h-full transition-all duration-500 border border-terminal-border rounded',
       spectralMode && 'filter sepia(0.2) hue-rotate(85deg) brightness(1.1) contrast(1.2)',
       className
     )}>

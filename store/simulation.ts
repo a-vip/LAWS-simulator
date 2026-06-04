@@ -30,6 +30,9 @@ interface SimulationStore extends SimulationState {
   tick: () => void;
   setViewMode: (mode: 'dashboard' | 'satellite' | 'drone') => void;
   setOrbitActive: (active: boolean) => void;
+  // Module navigation
+  activeModule: string;
+  setActiveModule: (module: string) => void;
 }
 
 const initialState: SimulationState = {
@@ -52,6 +55,9 @@ const initialState: SimulationState = {
 
 export const useSimulationStore = create<SimulationStore>((set, get) => ({
   ...initialState,
+  activeModule: 'hub',
+
+  setActiveModule: (module: string) => set({ activeModule: module }),
 
   loadScenario: (scenario: Scenario) => {
     set({

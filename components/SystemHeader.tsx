@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useSimulationStore, PHASE_LABELS } from '@/store/simulation';
 import { AlertTriangle, Radio, Wifi, Lock } from 'lucide-react';
 import clsx from 'clsx';
+import { ModuleNav } from './modules/ModuleNav';
 
 export function SystemHeader() {
   const { phase, systemTime, totalEngagements, activeScenario, resetSimulation } = useSimulationStore();
@@ -72,24 +73,24 @@ export function SystemHeader() {
         </div>
       </div>
 
-      {/* CENTER — current phase */}
+      {/* CENTER — Module Navigation */}
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
         {isAlert && (
-          <AlertTriangle className="w-4 h-4 text-terminal-red shrink-0" />
+          <AlertTriangle className="w-4 h-4 text-terminal-red shrink-0 animate-pulse" />
         )}
-        <span className={clsx(
-          'tracking-widest text-[11px] font-bold',
-          isAlert ? 'text-terminal-red' : 'text-terminal-text'
-        )}>
-          {PHASE_LABELS[phase]}
-        </span>
+        <ModuleNav />
+        {isAlert && (
+          <span className="text-terminal-red text-[9px] font-bold tracking-widest animate-pulse hidden lg:block">
+            {PHASE_LABELS[phase]}
+          </span>
+        )}
       </div>
 
       {/* RIGHT — clock + stats */}
       <div className="flex items-center gap-4 text-[10px]">
         <div className="hidden sm:flex flex-col items-end leading-tight">
-          <span className="text-terminal-text-dim">{dateStr}</span>
-          <span className={clsx('font-bold', tick ? 'text-terminal-green' : 'text-terminal-green/70')}>
+          <span className="text-terminal-text-dim" suppressHydrationWarning>{dateStr}</span>
+          <span className={clsx('font-bold', tick ? 'text-terminal-green' : 'text-terminal-green/70')} suppressHydrationWarning>
             {timeStr}
           </span>
         </div>

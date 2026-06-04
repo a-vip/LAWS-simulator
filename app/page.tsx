@@ -14,10 +14,31 @@ import { SimulationTicker } from '@/components/SimulationTicker';
 import { KioskMode } from '@/components/KioskMode';
 import { PresenterPanel } from '@/components/PresenterPanel';
 import { CommandDashboard } from '@/components/CommandDashboard';
+import { TargetPipeline } from '@/components/modules/TargetPipeline';
+import { LavenderModule } from '@/components/modules/LavenderModule';
+import { HabsoraModule } from '@/components/modules/HabsoraModule';
+import { WheresDaddyModule } from '@/components/modules/WheresDaddyModule';
+import { HumanLoopModule } from '@/components/modules/HumanLoopModule';
+import { ComplianceModule } from '@/components/modules/ComplianceModule';
 import { useSimulationStore } from '@/store/simulation';
 
 export default function Home() {
-  const { viewMode } = useSimulationStore();
+  const { viewMode, activeModule } = useSimulationStore();
+
+  // Render active engine module full-screen
+  const renderModule = () => {
+    switch (activeModule) {
+      case 'pipeline':   return <TargetPipeline />;
+      case 'lavender':   return <LavenderModule />;
+      case 'habsora':    return <HabsoraModule />;
+      case 'daddy':      return <WheresDaddyModule />;
+      case 'human':      return <HumanLoopModule />;
+      case 'compliance': return <ComplianceModule />;
+      default:           return null;
+    }
+  };
+
+  const isModuleView = activeModule !== 'hub';
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden scanlines">
@@ -28,9 +49,14 @@ export default function Home() {
       {/* Top bar */}
       <SystemHeader />
 
-      {/* Main layout: left panel | map | right panel */}
+      {/* Main layout */}
       <div className="flex flex-1 overflow-hidden relative z-0">
-        {viewMode === 'dashboard' ? (
+        {isModuleView ? (
+          /* Full-screen module canvas */
+          <div className="flex-1 overflow-hidden">
+            {renderModule()}
+          </div>
+        ) : viewMode === 'dashboard' ? (
           <CommandDashboard />
         ) : (
           <>

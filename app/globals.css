@@ -349,3 +349,277 @@ gmp-map-3d-marker {
   animation: shockwaveExpand 1.2s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
   filter: drop-shadow(0 0 12px #ff1a2e);
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Google Maps 3D Photorealistic View — Drone Marker Styles
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Drone Marker Container */
+.gmap3d-drone-marker {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  filter: drop-shadow(0 0 12px var(--drone-color, #00aaff));
+}
+
+/* Drone Body — central chassis */
+.gmap3d-drone-body {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  transform-style: preserve-3d;
+  animation: gmap3dDroneHover 2s ease-in-out infinite;
+}
+
+@keyframes gmap3dDroneHover {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+/* Glowing Core (center) */
+.gmap3d-drone-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  margin-top: -7px;
+  border-radius: 3px;
+  background-color: var(--drone-color, #00aaff);
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 0 8px var(--drone-color, #00aaff),
+    0 0 20px var(--drone-color, #00aaff),
+    inset 0 0 4px rgba(255, 255, 255, 0.5);
+  animation: gmap3dCorePulse 1.2s ease-in-out infinite alternate;
+  z-index: 3;
+}
+
+@keyframes gmap3dCorePulse {
+  0% { box-shadow: 0 0 8px var(--drone-color, #00aaff), 0 0 20px var(--drone-color, #00aaff); }
+  100% { box-shadow: 0 0 14px var(--drone-color, #00aaff), 0 0 35px var(--drone-color, #00aaff), 0 0 55px var(--drone-color, #00aaff); }
+}
+
+/* Spinning Rotors */
+.gmap3d-drone-rotor {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  animation: gmap3dRotorSpin 0.05s linear infinite;
+  z-index: 2;
+}
+
+.gmap3d-drone-rotor::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  margin-top: -1px;
+  background-color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.6);
+}
+
+.gmap3d-drone-rotor::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background-color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.6);
+}
+
+@keyframes gmap3dRotorSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.gmap3d-drone-rotor.r1 { top: 0; left: 0; }
+.gmap3d-drone-rotor.r2 { top: 0; right: 0; }
+.gmap3d-drone-rotor.r3 { bottom: 0; left: 0; }
+.gmap3d-drone-rotor.r4 { bottom: 0; right: 0; }
+
+/* Arms connecting rotors to body */
+.gmap3d-drone-body::before,
+.gmap3d-drone-body::after {
+  content: '';
+  position: absolute;
+  background: rgba(255, 255, 255, 0.35);
+  z-index: 1;
+}
+
+.gmap3d-drone-body::before {
+  top: 50%;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  margin-top: -1px;
+  transform: rotate(45deg);
+}
+
+.gmap3d-drone-body::after {
+  top: 50%;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  margin-top: -1px;
+  transform: rotate(-45deg);
+}
+
+/* Searchlight Cone */
+.gmap3d-drone-searchlight {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-left: 18px solid transparent;
+  border-right: 18px solid transparent;
+  border-top: 50px solid;
+  border-top-color: var(--drone-color, #00aaff);
+  opacity: 0.15;
+  margin-left: -18px;
+  filter: blur(3px);
+  animation: gmap3dSearchlightPulse 2.5s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes gmap3dSearchlightPulse {
+  0% { opacity: 0.1; transform: scaleX(0.8); }
+  100% { opacity: 0.22; transform: scaleX(1.2); }
+}
+
+/* Drone Label */
+.gmap3d-drone-label {
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--drone-color, #00aaff);
+  text-shadow: 0 0 6px var(--drone-color, #00aaff);
+  white-space: nowrap;
+  letter-spacing: 1.5px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Google Maps 3D — Target Reticle Marker Styles
+   ════════════════════════════════════════════════════════════════════════ */
+
+.gmap3d-target-reticle {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reticle-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid #ff1a2e;
+}
+
+.reticle-ring-outer {
+  width: 70px;
+  height: 70px;
+  border-style: dashed;
+  animation: gmap3dReticleRotate 8s linear infinite;
+  opacity: 0.6;
+}
+
+.reticle-ring-inner {
+  width: 48px;
+  height: 48px;
+  animation: gmap3dReticlePing 2s infinite;
+  opacity: 0.8;
+}
+
+@keyframes gmap3dReticleRotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes gmap3dReticlePing {
+  0% { transform: scale(1); opacity: 0.8; }
+  70% { transform: scale(1.3); opacity: 0.3; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+.reticle-crosshair {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+}
+
+.reticle-crosshair::before,
+.reticle-crosshair::after {
+  content: '';
+  position: absolute;
+  background-color: #ff1a2e;
+}
+
+.reticle-crosshair::before {
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  margin-top: -0.5px;
+}
+
+.reticle-crosshair::after {
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+}
+
+.reticle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ff1a2e;
+  box-shadow: 0 0 10px 4px rgba(255, 26, 46, 0.7);
+  animation: gmap3dDotPulse 1s ease-in-out infinite;
+}
+
+@keyframes gmap3dDotPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 10px 4px rgba(255, 26, 46, 0.7); }
+  50% { transform: scale(1.3); box-shadow: 0 0 16px 8px rgba(255, 26, 46, 0.9); }
+}
+
+.reticle-label {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7px;
+  font-weight: 700;
+  color: #ff1a2e;
+  text-shadow: 0 0 6px #ff1a2e;
+  white-space: nowrap;
+  letter-spacing: 2px;
+  animation: gmap3dLabelBlink 1.5s step-end infinite;
+}
+
+@keyframes gmap3dLabelBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
