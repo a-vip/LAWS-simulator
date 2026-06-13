@@ -623,3 +623,206 @@ gmp-map-3d-marker {
   50% { opacity: 0.4; }
 }
 
+/* ── TACTICAL OVERLAY STYLES (Palantir MAVEN) ──────────────────────── */
+
+/* Military marker base */
+.tactical-mil-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: auto !important;
+}
+
+.mil-marker-inner {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--marker-color, #0096ff);
+  background: rgba(5, 5, 8, 0.85);
+  font-size: 11px;
+  color: var(--marker-color, #0096ff);
+  transition: all 0.2s ease;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--marker-color, #0096ff) 40%, transparent);
+}
+
+.tactical-mil-marker:hover .mil-marker-inner {
+  background: color-mix(in srgb, var(--marker-color, #0096ff) 25%, #050508);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--marker-color, #0096ff) 60%, transparent);
+  transform: scale(1.15);
+}
+
+/* NATO symbology shapes */
+.hostile-diamond .mil-marker-inner { transform: rotate(45deg); border-radius: 2px; }
+.hostile-diamond .mil-icon { transform: rotate(-45deg); }
+.hostile-diamond:hover .mil-marker-inner { transform: rotate(45deg) scale(1.15); }
+
+.friendly-rect .mil-marker-inner { border-radius: 3px; }
+.friendly-diamond .mil-marker-inner { transform: rotate(45deg); border-radius: 2px; }
+.friendly-diamond .mil-icon { transform: rotate(-45deg); }
+
+.neutral-square .mil-marker-inner { border-radius: 0; }
+
+/* Marker labels */
+.mil-marker-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7px;
+  font-weight: 700;
+  color: #536878;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  margin-top: 2px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+.mil-marker-label.mil-hostile { color: #ff1a2e; }
+.mil-marker-label.mil-neutral { color: #00d47e; }
+
+/* Tooltip styles */
+.tactical-tooltip-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.tactical-tooltip-container .leaflet-tooltip-content {
+  margin: 0;
+}
+.tactical-tooltip-container::before {
+  border-top-color: rgba(8, 12, 18, 0.95) !important;
+}
+
+.tactical-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(8, 12, 18, 0.95);
+  border: 1px solid #1a2535;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  color: #ccd6e0;
+  min-width: 160px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+}
+
+.tt-header {
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: #e8f0f8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tt-header.tt-hostile { color: #ff1a2e; }
+.tt-header.tt-friendly { color: #0096ff; }
+.tt-header.tt-neutral { color: #00d47e; }
+
+.tt-divider {
+  height: 1px;
+  background: #1a2535;
+  margin: 2px 0;
+}
+
+.tt-row {
+  color: #536878;
+  line-height: 1.4;
+}
+.tt-row.tt-warn {
+  color: #00d47e;
+  font-weight: 600;
+}
+
+.tt-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.tt-badge-low { background: #5c3c00; color: #ffaa00; }
+.tt-badge-medium { background: #5c2800; color: #ff6600; }
+.tt-badge-high { background: #6b0010; color: #ff1a2e; }
+.tt-badge-critical { background: #8b0020; color: #ff0044; }
+
+/* Ring labels */
+.tactical-ring-label {
+  background: transparent !important;
+  border: none !important;
+}
+.ring-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.ring-caution { color: #ffaa00; background: rgba(255, 170, 0, 0.1); }
+
+/* Sensor labels */
+.tactical-sensor-label {
+  background: transparent !important;
+  border: none !important;
+}
+.sensor-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7px;
+  font-weight: 600;
+  color: rgba(0, 150, 255, 0.6);
+  letter-spacing: 1px;
+}
+
+/* COA labels */
+.tactical-coa-label {
+  background: transparent !important;
+  border: none !important;
+}
+.coa-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7px;
+  font-weight: 700;
+  color: rgba(0, 120, 255, 0.7);
+  letter-spacing: 0.5px;
+}
+
+/* Zone labels */
+.tactical-zone-label {
+  background: transparent !important;
+  border: none !important;
+}
+.zone-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+.zone-hostile { color: #ff1a2e; background: rgba(255, 26, 46, 0.15); border: 1px solid rgba(255, 26, 46, 0.3); }
+
+/* CDE pulse animation */
+.cde-pulse-ring {
+  animation: cdePulse 2.5s ease-in-out infinite;
+}
+@keyframes cdePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Arrow direction markers */
+.tactical-arrow {
+  background: transparent !important;
+  border: none !important;
+}
+.arrow-icon {
+  font-size: 8px;
+  opacity: 0.6;
+  text-shadow: 0 0 4px currentColor;
+}
+

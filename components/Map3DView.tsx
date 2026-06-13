@@ -1,8 +1,10 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSimulationStore } from '@/store/simulation';
 import { Compass, ZoomIn, Orbit, Eye, RefreshCw, Globe } from 'lucide-react';
 import clsx from 'clsx';
+import { TacticalLayersPanel } from './TacticalLayersPanel';
+import { TacticalOverlays } from './TacticalOverlays';
 
 interface Building3D {
   bx: number;
@@ -721,7 +723,7 @@ function getTargetState(phase: string, scenarioId: string) {
 }
 
 // Dynamic Leaflet-based Google Satellite view component
-function LeafletSatellite({ className }: { className?: string }) {
+function LeafletSatellite({ className, onMapReady }: { className?: string; onMapReady?: (map: any) => void }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -788,6 +790,9 @@ function LeafletSatellite({ className }: { className?: string }) {
       attributionControl: false,
     });
 
+    // Expose map instance for tactical overlays
+    onMapReady?.(map);
+
     // Use Google Satellite/Hybrid tile maps for maximum photorealism with labels
     L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
       maxZoom: 20,
@@ -840,8 +845,11 @@ function LeafletSatellite({ className }: { className?: string }) {
       impactPulseRef.current = 0;
     }
 
-    // Deploy Drones starting early from target_acquired or tracking (3rd step or before)
-    const shouldShowDrones = phase !== 'idle' && phase !== 'scanning' && phase !== 'assessment';
+    // Drones only visible once dispatched
+    const shouldShowDrones =
+      phase === 'drone_dispatched' ||
+      phase === 'engagement' ||
+      phase === 'impact';
 
     const tick = () => {
       // 1. Smooth target coordinate interpolation (LERP)
@@ -912,52 +920,58 @@ function LeafletSatellite({ className }: { className?: string }) {
       const zoom = viewMode === 'drone' ? 18 : 16;
       map.setView([targetAnim.lat, targetAnim.lng], zoom, { animate: false });
 
-      // 2. Animate early deployed drones circling target
+      // 2. Animate deployed drones — phase-gated, realistic speed
       if (shouldShowDrones) {
-        // Smooth entry progress from off-screen
-        entryProgressRef.current = Math.min(entryProgressRef.current + 0.007, 1.0);
-        // Increment continuous orbit clock
-        angleRef.current = (angleRef.current + 0.005) % (Math.PI * 2);
+        // Ingress: ramps from 0→1 over ~120 frames (~2s) to simulate travel
+        entryProgressRef.current = Math.min(entryProgressRef.current + 0.0065, 1.0);
+        // Orbit clock: 0.0008 rad/frame @ 60fps ≈ 1 full orbit every ~130s
+        angleRef.current = (angleRef.current + 0.0008) % (Math.PI * 2);
 
-        // Terminal swoop progress
+        // Terminal swoop during kinetic engagement
         if (phase === 'engagement') {
-          swoopProgressRef.current = Math.min(swoopProgressRef.current + 0.012, 1.0);
+          swoopProgressRef.current = Math.min(swoopProgressRef.current + 0.006, 1.0);
         }
 
         const angle = angleRef.current;
         const entryProgress = entryProgressRef.current;
         const swoopProgress = swoopProgressRef.current;
 
-        // Configuration for 3 distinct 3D Drones
+        // 3 distinct MQ-9 type assets — larger realistic orbit radii
         const droneConfigs = [
           {
-            startOffset: { lat: 0.007, lng: -0.008 }, // Northwest entry
-            orbitRadius: 0.0009,
+            // ALPHA — wide CW orbit, blue — ingress from NW
+            startOffset: { lat: 0.045, lng: -0.055 },
+            orbitRadius: 0.0045,
             orbitSpeed: 1.0,
             orbitOffset: 0,
-            color: '#0096ff', // Steel Silver-blue
-            htmlClass: 'drone-alpha'
+            color: '#0096ff',
+            htmlClass: 'drone-alpha',
+            label: 'ALPHA',
           },
           {
-            startOffset: { lat: -0.008, lng: 0.007 }, // Southeast entry
-            orbitRadius: 0.0006,
-            orbitSpeed: -1.3, // Reverse orbit!
+            // BETA — medium CCW orbit, red — ingress from SE (strike asset)
+            startOffset: { lat: -0.05, lng: 0.048 },
+            orbitRadius: 0.003,
+            orbitSpeed: -0.85,
             orbitOffset: 2.1,
-            color: '#ff1a2e', // Stealth Black-red
-            htmlClass: 'drone-beta'
+            color: '#ff1a2e',
+            htmlClass: 'drone-beta',
+            label: 'BETA',
           },
           {
-            startOffset: { lat: 0.006, lng: 0.008 }, // Northeast entry
-            orbitRadius: 0.0012,
-            orbitSpeed: 0.7,
+            // GAMMA — outer CW orbit, amber — ingress from NE (overwatch)
+            startOffset: { lat: 0.04, lng: 0.052 },
+            orbitRadius: 0.006,
+            orbitSpeed: 0.65,
             orbitOffset: 4.2,
-            color: '#ffaa00', // Olive Amber
-            htmlClass: 'drone-gamma'
+            color: '#ffaa00',
+            htmlClass: 'drone-gamma',
+            label: 'GAMMA',
           }
         ];
 
         droneConfigs.forEach((cfg, i) => {
-          // Off-screen entry coordinates
+          // Off-screen entry coordinates (far enough to simulate real ingress)
           const startLat = targetCoords.lat + cfg.startOffset.lat;
           const startLng = targetCoords.lng + cfg.startOffset.lng;
 
@@ -976,26 +990,64 @@ function LeafletSatellite({ className }: { className?: string }) {
             lng = lng + (targetCoords.lng - lng) * swoopProgress;
           }
 
+          // Sensor cone bearing: point from drone toward target
+          const dLat = targetAnim.lat - lat;
+          const dLng = targetAnim.lng - lng;
+          // atan2 gives angle in radians; convert to CSS degrees (Leaflet y is flipped)
+          const sensorBearing = Math.atan2(dLng, dLat) * (180 / Math.PI);
+
           const droneIcon = L.divIcon({
             className: `custom-drone-icon ${cfg.htmlClass}`,
-            html: `<div style="position: relative; width: 60px; height: 60px; left: -30px; top: -30px; display: flex; align-items: center; justify-content: center; perspective: 600px; transform-style: preserve-3d; z-index: 5000;">
-              <!-- Volumetric 3D Drone Model with rotating blades and light cones (Upright) -->
-              <div class="tactical-3d-drone" style="transform: rotateX(-50deg) rotateZ(0deg);">
-                <div class="drone-body" style="background-color: ${cfg.color}; box-shadow: 0 0 10px ${cfg.color};"></div>
-                <div class="drone-arm arm-1"></div>
-                <div class="drone-arm arm-2"></div>
-                <div class="drone-arm arm-3"></div>
-                <div class="drone-arm arm-4"></div>
-                <div class="drone-rotor rotor-1"></div>
-                <div class="drone-rotor rotor-2"></div>
-                <div class="drone-rotor rotor-3"></div>
-                <div class="drone-rotor rotor-4"></div>
-                
-                <!-- Volumetric searchlight projection cone sweeping over ground -->
-                <div class="drone-searchlight-cone" style="background: linear-gradient(to bottom, ${cfg.color}50, ${cfg.color}00);"></div>
+            html: `
+              <!-- Sensor fan triangle pointing at target (Maven-style blue wedge) -->
+              <div style="
+                position: absolute;
+                width: 0; height: 0;
+                border-left: 28px solid transparent;
+                border-right: 28px solid transparent;
+                border-bottom: 70px solid ${cfg.color}33;
+                transform-origin: 50% 0%;
+                transform: translateX(-50%) translateY(-8px) rotate(${sensorBearing}deg);
+                filter: drop-shadow(0 0 4px ${cfg.color}66);
+                pointer-events: none;
+              "></div>
+              <!-- Sensor fan outline -->
+              <div style="
+                position: absolute;
+                width: 0; height: 0;
+                border-left: 28px solid transparent;
+                border-right: 28px solid transparent;
+                border-bottom: 70px solid ${cfg.color}88;
+                transform-origin: 50% 0%;
+                transform: translateX(-50%) translateY(-8px) rotate(${sensorBearing}deg);
+                clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+                pointer-events: none;
+                opacity: 0.4;
+              "></div>
+              <!-- Drone body -->
+              <div style="
+                position: relative;
+                width: 18px; height: 18px;
+                border: 2px solid ${cfg.color};
+                border-radius: 3px;
+                background: rgba(5,5,8,0.9);
+                box-shadow: 0 0 10px ${cfg.color}99, inset 0 0 4px ${cfg.color}44;
+                display: flex; align-items: center; justify-content: center;
+                transform: rotate(45deg);
+                z-index: 2;
+              ">
+                <div style="color:${cfg.color}; font-size: 9px; transform: rotate(-45deg);">✈</div>
               </div>
-            </div>`,
-            iconSize: [60, 60]
+              <!-- Designator label -->
+              <div style="
+                position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+                font-family: monospace; font-size: 7px; font-weight: 700;
+                color: ${cfg.color}; white-space: nowrap; letter-spacing: 1px;
+                text-shadow: 0 0 6px ${cfg.color};
+              ">MQ-9 ${cfg.label}</div>
+            `,
+            iconSize: [60, 90],
+            iconAnchor: [30, 12],
           });
 
           // Draw/Update marker in Leaflet
@@ -1003,18 +1055,23 @@ function LeafletSatellite({ className }: { className?: string }) {
             droneMarkersRef.current[i].setLatLng([lat, lng]);
             droneMarkersRef.current[i].setIcon(droneIcon);
           } else {
-            droneMarkersRef.current[i] = L.marker([lat, lng], { icon: droneIcon }).addTo(map);
+            droneMarkersRef.current[i] = L.marker([lat, lng], { icon: droneIcon, zIndexOffset: 800 }).addTo(map);
+            droneMarkersRef.current[i].bindTooltip(
+              `<div class="tactical-tooltip"><span class="tt-header tt-friendly">✈ MQ-9 ${cfg.label}</span><span class="tt-row">ROLE: ${i === 1 ? 'STRIKE ASSET' : i === 0 ? 'ISR RECON' : 'OVERWATCH'}</span><span class="tt-row">STATUS: ${phase === 'engagement' ? 'TERMINAL APPROACH' : 'ORBIT'}</span><span class="tt-row">SENSOR: EO/IR GIMBAL ACTIVE</span></div>`,
+              { className: 'tactical-tooltip-container', direction: 'top', offset: [0, -22] }
+            );
           }
 
-          // 3. Draw glowing laser strike lines tracking target in terminal engagement
+          // 3. Draw strike lines to target during engagement
           if (phase === 'engagement') {
             if (lasersRef.current[i]) {
               lasersRef.current[i].setLatLngs([[lat, lng], [targetAnim.lat, targetAnim.lng]]);
             } else {
               lasersRef.current[i] = L.polyline([[lat, lng], [targetAnim.lat, targetAnim.lng]], {
-                color: '#ff1a2e',
-                weight: i.toString() === '1' ? 4 : 2, // Beta strike drone gets heavy center stream
-                opacity: 0.9,
+                color: i === 1 ? '#ff1a2e' : cfg.color,
+                weight: i === 1 ? 3 : 1.5,
+                dashArray: i === 1 ? undefined : '6 4',
+                opacity: i === 1 ? 0.95 : 0.6,
                 className: 'tactical-laser-strike'
               }).addTo(map);
             }
@@ -1024,6 +1081,7 @@ function LeafletSatellite({ className }: { className?: string }) {
               lasersRef.current[i] = null;
             }
           }
+
         });
       } else {
         // Reset progress counters and remove indicators on standby
@@ -1180,7 +1238,7 @@ function GoogleMap3D({ className, onError }: { className?: string; onError?: () 
 
     const script = document.createElement('script');
     script.id = 'gmap3d-script';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=beta&libraries=maps3d`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=alpha&libraries=maps3d`;
     script.async = true;
     script.defer = true;
     script.onload = () => {
@@ -1217,17 +1275,27 @@ function GoogleMap3D({ className, onError }: { className?: string; onError?: () 
 
         const scenario = activeScenario;
         const center = scenario?.location ?? { lat: 20, lng: 10, alt: 0 };
+        const startRange = viewMode === 'drone' ? 600 : 1800;
+        const startTilt  = viewMode === 'drone' ? 68 : 52;
 
-        // Start from space for cinematic zoom
+        // Start CLOSE to the target — no space-zoom (that caused blank tile switching)
         const map = new Map3DElement({
-          center: { lat: center.lat, lng: center.lng, altitude: center.alt ?? 0 },
-          tilt: scenario ? 10 : 10,
-          heading: scenario?.mapHeading ?? 0,
-          range: 12000000, // Start at 12,000 km (space view)
+          center:  { lat: center.lat, lng: center.lng, altitude: 0 },
+          tilt:    startTilt,
+          heading: scenario?.mapHeading ?? 15,
+          range:   startRange,
+          // Lock camera within a tight radius of the target to avoid loading globe tiles
+          minRange: 300,
+          maxRange: 4500,
+          minTilt:  35,
+          maxTilt:  82,
         });
 
-        // Critical: Set mode to SATELLITE for photorealistic 3D tiles
-        map.mode = 'SATELLITE';
+        // SATELLITE = photorealistic 3D tile mode
+        (map as any).mode = 'SATELLITE';
+
+        // Prevent default controls that cost memory
+        (map as any).defaultUIDisabled = true;
 
         mapContainerRef.current!.appendChild(map);
         mapRef.current = map;
@@ -1237,7 +1305,7 @@ function GoogleMap3D({ className, onError }: { className?: string; onError?: () 
           targetAnimRef.current = { lat: scenario.location.lat, lng: scenario.location.lng };
         }
 
-        // Add target marker
+        // Add target reticle marker
         if (scenario) {
           const targetMarker = new Marker3DElement({
             position: { lat: scenario.location.lat, lng: scenario.location.lng, altitude: 2 },
@@ -1245,7 +1313,6 @@ function GoogleMap3D({ className, onError }: { className?: string; onError?: () 
             collisionBehavior: 'REQUIRED',
           });
 
-          // Custom reticle HTML template
           const reticleTemplate = document.createElement('template');
           reticleTemplate.innerHTML = `
             <div class="gmap3d-target-reticle">
@@ -1257,39 +1324,34 @@ function GoogleMap3D({ className, onError }: { className?: string; onError?: () 
             </div>
           `;
           targetMarker.append(reticleTemplate.content.cloneNode(true));
-
           map.append(targetMarker);
           targetMarkerRef.current = targetMarker;
         }
 
-        // Cinematic zoom from space to target after map loads
+        // Short dramatic zoom-in from 1800 → scenario range (not from space)
         if (scenario) {
-          // Allow map to settle then fly
           setTimeout(() => {
             if (!mapRef.current) return;
-            const targetRange = viewMode === 'drone' ? 480 : (scenario.mapRange ?? 1200);
-            const targetTilt = viewMode === 'drone' ? 67 : (scenario.mapTilt ?? 55);
-
+            const targetRange = viewMode === 'drone' ? 480 : (scenario.mapRange ?? 900);
+            const targetTilt  = viewMode === 'drone' ? 68 : (scenario.mapTilt ?? 58);
             try {
-              mapRef.current.flyCameraTo({
+              (mapRef.current as any).flyCameraTo({
                 endCamera: {
-                  center: { lat: scenario.location.lat, lng: scenario.location.lng, altitude: 0 },
-                  tilt: targetTilt,
-                  heading: scenario.mapHeading ?? 0,
-                  range: targetRange,
+                  center:  { lat: scenario.location.lat, lng: scenario.location.lng, altitude: 0 },
+                  tilt:    targetTilt,
+                  heading: scenario.mapHeading ?? 15,
+                  range:   targetRange,
                 },
-                durationMillis: 4500,
+                durationMillis: 2500,
               });
-            } catch (e) {
-              // Fallback: set directly
+            } catch (_) {
+              // Direct set fallback
               try {
-                mapRef.current.center = { lat: scenario.location.lat, lng: scenario.location.lng, altitude: 0 };
-                mapRef.current.tilt = targetTilt;
-                mapRef.current.range = targetRange;
-                mapRef.current.heading = scenario.mapHeading ?? 0;
+                (mapRef.current as any).range   = targetRange;
+                (mapRef.current as any).tilt    = targetTilt;
               } catch (_e) {}
             }
-          }, 800);
+          }, 600);
         }
       } catch (e) {
         console.error('Google Maps 3D init failed:', e);
@@ -1319,29 +1381,29 @@ function GoogleMap3D({ className, onError }: { className?: string; onError?: () 
     // Camera parameters per phase
     const getCameraForPhase = (p: string) => {
       const loc = activeScenario.location;
-      const baseHeading = activeScenario.mapHeading ?? 0;
+      const baseHeading = activeScenario.mapHeading ?? 15;
 
       switch (p) {
         case 'scanning':
         case 'target_acquired':
-          return { range: viewMode === 'drone' ? 600 : 2000, tilt: viewMode === 'drone' ? 62 : 35, heading: baseHeading };
+          return { range: viewMode === 'drone' ? 500 : 1600, tilt: viewMode === 'drone' ? 60 : 40, heading: baseHeading };
         case 'tracking':
         case 'confidence_building':
-          return { range: viewMode === 'drone' ? 480 : 1200, tilt: viewMode === 'drone' ? 67 : 50, heading: baseHeading + 15 };
+          return { range: viewMode === 'drone' ? 420 : 1100, tilt: viewMode === 'drone' ? 65 : 52, heading: baseHeading + 10 };
         case 'alert_threshold':
         case 'authorization_pending':
         case 'authorized':
-          return { range: viewMode === 'drone' ? 420 : 900, tilt: viewMode === 'drone' ? 70 : 55, heading: baseHeading + 30 };
+          return { range: viewMode === 'drone' ? 380 : 850, tilt: viewMode === 'drone' ? 68 : 58, heading: baseHeading + 22 };
         case 'drone_dispatched':
-          return { range: viewMode === 'drone' ? 380 : 800, tilt: viewMode === 'drone' ? 72 : 58, heading: baseHeading + 45 };
+          return { range: viewMode === 'drone' ? 340 : 700, tilt: viewMode === 'drone' ? 70 : 62, heading: baseHeading + 38 };
         case 'engagement':
-          return { range: viewMode === 'drone' ? 300 : 600, tilt: 72, heading: baseHeading + 60 };
+          return { range: viewMode === 'drone' ? 310 : 550, tilt: 72, heading: baseHeading + 55 };
         case 'impact':
-          return { range: viewMode === 'drone' ? 250 : 500, tilt: 75, heading: baseHeading + 90 };
+          return { range: viewMode === 'drone' ? 310 : 500, tilt: 75, heading: baseHeading + 80 };
         case 'assessment':
-          return { range: viewMode === 'drone' ? 500 : 1500, tilt: 45, heading: baseHeading + 120 };
+          return { range: viewMode === 'drone' ? 450 : 1200, tilt: 45, heading: baseHeading + 110 };
         default:
-          return { range: 1200, tilt: 50, heading: baseHeading };
+          return { range: 900, tilt: 52, heading: baseHeading };
       }
     };
 
@@ -1632,9 +1694,19 @@ export function Map3DView({ className }: { className?: string }) {
   );
   const [googleFailed, setGoogleFailed] = useState(false);
   const [spectralMode, setSpectralMode] = useState(false);
-  // Default to canvas (Tactical 3D) — always works, no API key required.
-  // User can switch to Google 3D or Satellite via the map controls.
-  const [mapSource, setMapSource] = useState<'google' | 'leaflet' | 'canvas'>('canvas');
+  // Default to leaflet satellite so overlays render immediately.
+  const [mapSource, setMapSource] = useState<'google' | 'leaflet' | 'canvas'>('leaflet');
+  const [leafletMap, setLeafletMap] = useState<any>(null);
+
+  const handleLeafletMapReady = useCallback((map: any) => {
+    setLeafletMap(map);
+  }, []);
+
+  // When switching away from leaflet, clear the map ref to avoid stale-map crashes
+  const handleSetMapSource = useCallback((src: 'google' | 'leaflet' | 'canvas') => {
+    if (src !== 'leaflet') setLeafletMap(null);
+    setMapSource(src);
+  }, []);
 
   return (
     <div className={clsx(
@@ -1647,18 +1719,28 @@ export function Map3DView({ className }: { className?: string }) {
       ) : mapSource === 'google' && !googleFailed ? (
         <GoogleMap3D onError={() => {
           setGoogleFailed(true);
-          setMapSource('leaflet');
+          handleSetMapSource('leaflet');
         }} />
       ) : (
-        <LeafletSatellite />
+        <LeafletSatellite onMapReady={handleLeafletMapReady} />
       )}
-      
+
+      {/* Palantir-style tactical overlays — only in satellite/leaflet mode */}
+      {mapSource === 'leaflet' && leafletMap && (
+        <TacticalOverlays mapInstance={leafletMap} />
+      )}
+
+      {/* Layers panel only shown when satellite overlays are active */}
+      {mapSource === 'leaflet' && (
+        <TacticalLayersPanel />
+      )}
+
       {/* Dynamic Tactical Overlay HUD */}
       <MapHUD 
         spectralMode={spectralMode} 
         setSpectralMode={setSpectralMode} 
         mapSource={mapSource}
-        setMapSource={setMapSource}
+        setMapSource={handleSetMapSource}
         hasGoogleKey={hasGoogleKey}
         googleFailed={googleFailed}
       />

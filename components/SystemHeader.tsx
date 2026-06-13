@@ -4,10 +4,13 @@ import { useSimulationStore, PHASE_LABELS } from '@/store/simulation';
 import { AlertTriangle, Radio, Wifi, Lock } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleNav } from './modules/ModuleNav';
+import { SupportButton } from './SupportButton';
+import { SimulatorChangelog } from './SimulatorChangelog';
 
 export function SystemHeader() {
   const { phase, systemTime, totalEngagements, activeScenario, resetSimulation } = useSimulationStore();
   const [tick, setTick] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => !t), 1000);
@@ -21,84 +24,123 @@ export function SystemHeader() {
   const dateStr = systemTime.toISOString().split('T')[0];
 
   return (
-    <header
-      className={clsx(
-        'relative flex items-center justify-between px-4 py-0 h-12 border-b font-mono text-xs select-none shrink-0 z-50',
-        isAlert
-          ? 'bg-terminal-red-dim border-terminal-red text-terminal-red animate-pulse-red'
-          : 'bg-terminal-panel border-terminal-border text-terminal-text-dim'
-      )}
-    >
-      {/* LEFT — system identity */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <div className={clsx(
-            'w-2 h-2 rounded-full',
-            isAlert ? 'bg-terminal-red animate-ping-red'
-            : isActive ? 'bg-terminal-green animate-pulse'
-            : 'bg-terminal-text-faint'
-          )} />
-          <span className={clsx(
-            'font-bold tracking-widest text-[10px]',
-            isAlert ? 'text-terminal-red' : isActive ? 'text-terminal-green' : 'text-terminal-text-dim'
-          )}>
-            LAWS-SIM
-          </span>
-          <span className="text-terminal-text-faint">v2.4.1</span>
-          
-          {isActive && (
-            <button
-              onClick={() => resetSimulation()}
-              className="ml-2 px-2 py-0.5 border border-terminal-blue/50 text-terminal-blue hover:bg-terminal-blue/20 rounded font-bold text-[8.5px] uppercase transition-colors"
-            >
-              [COMMAND HUB]
-            </button>
+    <>
+      <header
+        className={clsx(
+          'relative flex items-center justify-between px-4 py-0 h-12 border-b font-mono text-xs select-none shrink-0 z-50',
+          isAlert
+            ? 'bg-terminal-red-dim border-terminal-red text-terminal-red animate-pulse-red'
+            : 'bg-terminal-panel border-terminal-border text-terminal-text-dim'
+        )}
+      >
+        {/* LEFT — system identity */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className={clsx(
+              'w-2 h-2 rounded-full',
+              isAlert ? 'bg-terminal-red animate-ping-red'
+              : isActive ? 'bg-terminal-green animate-pulse'
+              : 'bg-terminal-text-faint'
+            )} />
+            <span className={clsx(
+              'font-bold tracking-widest text-[10px]',
+              isAlert ? 'text-terminal-red' : isActive ? 'text-terminal-green' : 'text-terminal-text-dim'
+            )}>
+              LAWS-SIM
+            </span>
+            <span className="text-terminal-text-faint">v2.5.0</span>
+            
+            {isActive && (
+              <button
+                onClick={() => resetSimulation()}
+                className="ml-2 px-2 py-0.5 border border-terminal-blue/50 text-terminal-blue hover:bg-terminal-blue/20 rounded font-bold text-[8.5px] uppercase transition-colors"
+              >
+                [COMMAND HUB]
+              </button>
+            )}
+          </div>
+
+          <div className="hidden sm:flex items-center gap-1 text-terminal-text-faint">
+            <Lock className="w-3 h-3" />
+            <span>TS//SCI</span>
+          </div>
+
+          <div className="hidden md:flex items-center gap-3 text-[10px]">
+            <span className="flex items-center gap-1">
+              <Radio className="w-3 h-3 text-terminal-green" />
+              <span className="text-terminal-green">LINK ACTIVE</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <Wifi className="w-3 h-3 text-terminal-blue" />
+              <span className="text-terminal-blue">SIGINT FEED</span>
+            </span>
+          </div>
+        </div>
+
+        {/* CENTER — Module Navigation */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+          {isAlert && (
+            <AlertTriangle className="w-4 h-4 text-terminal-red shrink-0 animate-pulse" />
+          )}
+          <ModuleNav />
+          {isAlert && (
+            <span className="text-terminal-red text-[9px] font-bold tracking-widest animate-pulse hidden lg:block">
+              {PHASE_LABELS[phase]}
+            </span>
           )}
         </div>
 
-        <div className="hidden sm:flex items-center gap-1 text-terminal-text-faint">
-          <Lock className="w-3 h-3" />
-          <span>TS//SCI</span>
-        </div>
+        {/* RIGHT — support, changelog, by avi, clock, engagements */}
+        <div className="flex items-center gap-3 text-[10px]">
 
-        <div className="hidden md:flex items-center gap-3 text-[10px]">
-          <span className="flex items-center gap-1">
-            <Radio className="w-3 h-3 text-terminal-green" />
-            <span className="text-terminal-green">LINK ACTIVE</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <Wifi className="w-3 h-3 text-terminal-blue" />
-            <span className="text-terminal-blue">SIGINT FEED</span>
-          </span>
-        </div>
-      </div>
+          {/* Changelog button */}
+          <button
+            onClick={() => setShowChangelog((p) => !p)}
+            className={clsx(
+              'hidden sm:flex items-center gap-1 px-2 py-0.5 rounded border font-bold text-[9px] tracking-wide transition-all',
+              showChangelog
+                ? 'border-terminal-blue text-terminal-blue bg-terminal-blue/10'
+                : 'border-terminal-border/50 text-terminal-text-faint hover:border-terminal-blue/50 hover:text-terminal-blue'
+            )}
+            title="View simulator changelog"
+          >
+            CHANGELOG
+          </button>
 
-      {/* CENTER — Module Navigation */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-        {isAlert && (
-          <AlertTriangle className="w-4 h-4 text-terminal-red shrink-0 animate-pulse" />
-        )}
-        <ModuleNav />
-        {isAlert && (
-          <span className="text-terminal-red text-[9px] font-bold tracking-widest animate-pulse hidden lg:block">
-            {PHASE_LABELS[phase]}
-          </span>
-        )}
-      </div>
+          {/* BY AVI credit */}
+          <a
+            href="https://aviperera.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden md:flex items-center gap-1 text-terminal-text-faint hover:text-terminal-blue transition-colors text-[9px] font-bold tracking-wide no-underline"
+            title="Built by Avi Perera"
+          >
+            BY AVI ↗
+          </a>
 
-      {/* RIGHT — clock + stats */}
-      <div className="flex items-center gap-4 text-[10px]">
-        <div className="hidden sm:flex flex-col items-end leading-tight">
-          <span className="text-terminal-text-dim" suppressHydrationWarning>{dateStr}</span>
-          <span className={clsx('font-bold', tick ? 'text-terminal-green' : 'text-terminal-green/70')} suppressHydrationWarning>
-            {timeStr}
-          </span>
+          {/* Support button */}
+          <SupportButton />
+
+          {/* Clock */}
+          <div className="hidden sm:flex flex-col items-end leading-tight">
+            <span className="text-terminal-text-dim" suppressHydrationWarning>{dateStr}</span>
+            <span className={clsx('font-bold', tick ? 'text-terminal-green' : 'text-terminal-green/70')} suppressHydrationWarning>
+              {timeStr}
+            </span>
+          </div>
+
+          {/* Engagements */}
+          <div className="flex flex-col items-end leading-tight text-terminal-text-faint">
+            <span>ENGAGEMENTS</span>
+            <span className="text-terminal-amber font-bold">{String(totalEngagements).padStart(4, '0')}</span>
+          </div>
         </div>
-        <div className="flex flex-col items-end leading-tight text-terminal-text-faint">
-          <span>ENGAGEMENTS</span>
-          <span className="text-terminal-amber font-bold">{String(totalEngagements).padStart(4, '0')}</span>
-        </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Changelog modal — rendered above everything */}
+      {showChangelog && (
+        <SimulatorChangelog onClose={() => setShowChangelog(false)} />
+      )}
+    </>
   );
 }
