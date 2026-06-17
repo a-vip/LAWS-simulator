@@ -1,11 +1,14 @@
 'use client';
+import { useState } from 'react';
 import { useSimulationStore } from '@/store/simulation';
 import { SCENARIOS } from '@/lib/scenarios';
 import { Shield, Radio, Server, Activity, ArrowRight, Eye, ShieldAlert } from 'lucide-react';
 import clsx from 'clsx';
+import { IHLPolicyModal } from './IHLPolicyModal';
 
 export function CommandDashboard() {
   const { loadScenario, viewMode, setViewMode } = useSimulationStore();
+  const [showIHL, setShowIHL] = useState(false);
 
   if (viewMode !== 'dashboard') return null;
 
@@ -38,6 +41,8 @@ export function CommandDashboard() {
   ];
 
   return (
+    <>
+    {showIHL && <IHLPolicyModal onClose={() => setShowIHL(false)} />}
     <div className="flex-1 flex flex-col p-4 font-mono overflow-y-auto bg-terminal-bg select-none animate-fade-in space-y-4">
       {/* ── DIAGNOSTIC SYSTEM METRICS ──────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
@@ -55,7 +60,7 @@ export function CommandDashboard() {
           <div>
             <div className="text-[9px] text-terminal-text-faint uppercase tracking-wider">SECURE LINK</div>
             <div className="text-[12px] font-bold text-terminal-blue mt-1 flex items-center gap-1.5">
-              <Radio className="w-3.5 h-3.5" /> CLOUDFLARE EDGE
+              <Radio className="w-3.5 h-3.5" /> VERCEL EDGE
             </div>
           </div>
           <Server className="w-5 h-5 text-terminal-blue/50" />
@@ -71,17 +76,24 @@ export function CommandDashboard() {
           <span className="text-[10px] text-terminal-amber-dim font-bold">GRID ACCURATE</span>
         </div>
 
-        <div className="bg-terminal-card border border-terminal-border rounded p-3 flex items-center justify-between">
+        <button
+          onClick={() => setShowIHL(true)}
+          className="bg-terminal-card border border-terminal-red/40 hover:border-terminal-red rounded p-3 flex items-center justify-between w-full text-left transition-all hover:bg-terminal-red-dim/10 group cursor-pointer"
+          title="Click to view LAWS treaty obligations by country"
+        >
           <div>
             <div className="text-[9px] text-terminal-text-faint uppercase tracking-wider">IHL POLICY FILTER</div>
             <div className="text-[12px] font-bold text-terminal-red mt-1 flex items-center gap-1.5">
               <ShieldAlert className="w-3.5 h-3.5" /> NO BINDING TREATY
             </div>
           </div>
-          <span className="text-[8px] bg-terminal-red-dim border border-terminal-red text-terminal-red px-1 rounded animate-pulse">
-            WARNING
-          </span>
-        </div>
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-[8px] bg-terminal-red-dim border border-terminal-red text-terminal-red px-1 rounded animate-pulse">
+              WARNING
+            </span>
+            <span className="text-[7px] text-terminal-text-faint group-hover:text-terminal-red transition-colors">VIEW TREATY DATA ↗</span>
+          </div>
+        </button>
       </div>
 
       {/* ── KANBAN WORKSPACE BOARD ────────────────────────────────── */}
@@ -164,5 +176,6 @@ export function CommandDashboard() {
         ))}
       </div>
     </div>
+    </>
   );
 }

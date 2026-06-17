@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'LAWS Simulator — Stop Killer Robots Advocacy Tool',
+  title: 'LAWS Simulator - SKR',
   description:
     'An interactive simulation of Lethal Autonomous Weapons Systems (LAWS) targeting workflows, built to support disarmament advocacy by making visible the cold algorithmic reality of autonomous weapons. Campaign to Stop Killer Robots / UN Disarmament.',
   keywords: [
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     'Disarmament Advocacy',
   ],
   openGraph: {
-    title: 'LAWS Simulator — Disarmament Advocacy Tool',
+    title: 'LAWS Simulator - SKR',
     description: 'Interactive simulation of autonomous weapons targeting for disarmament advocacy.',
     type: 'website',
   },
@@ -28,6 +28,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="icon" type="image/png" href="/favicon.png" />
+        <link rel="shortcut icon" href="/favicon.png" />
         <link
           rel="preconnect"
           href="https://fonts.googleapis.com"
