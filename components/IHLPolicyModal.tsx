@@ -187,20 +187,25 @@ export function IHLPolicyModal({ onClose }: IHLPolicyModalProps) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
-        zIndex: 8000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(5px)',
+        zIndex: 99999,
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
         padding: '16px',
+        overflowY: 'auto',
+        paddingTop: '40px',
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '720px', maxWidth: '100%', maxHeight: 'calc(100vh - 32px)',
+          width: '720px', maxWidth: '100%',
+          maxHeight: 'calc(100vh - 80px)',
           background: 'rgba(5, 8, 14, 0.99)',
           border: '1px solid rgba(0, 150, 255, 0.25)',
           borderRadius: '10px', display: 'flex', flexDirection: 'column', overflow: 'hidden',
           boxShadow: '0 24px 80px rgba(0,0,0,0.9), 0 0 40px rgba(0,150,255,0.08)',
           fontFamily: 'monospace',
+          position: 'relative',
         }}
       >
         {/* Header */}
