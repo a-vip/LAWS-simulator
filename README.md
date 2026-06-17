@@ -19,7 +19,23 @@ The LAWS Simulator places you inside the targeting workflow of an autonomous wea
 - **Asset deployment** — track a drone en route to the target
 - **Post-strike assessment** — collateral damage records, accountability gaps, real legal context
 
-### Five built-in scenarios
+### Quick Visual Walkthrough
+
+1. **The Command Hub**: Select from a matrix of active target profiles and structural surveillance nodes.
+   ![Command Hub Dashboard](public/images/command_hub_main.png)
+   
+2. **Active Target Scanning**: Focus drone feeds on target coordinates and monitor real-time profiling signals.
+   ![Active Target Scanning](public/images/pol_scenario_phase1.png)
+   
+3. **Threshold Alert**: Intercept algorithmic matches crossing pre-set probability rules.
+   ![Threshold Alert Modal](public/images/pol_scenario_threshold_modal.png)
+   
+4. **Post-Strike Assessment**: Review independent civilian casualty reports and IHL legal conflicts.
+   ![Post-Strike Assessment](public/images/strike_complete.png)
+
+---
+
+### Seven built-in scenarios
 
 | Scenario | Based on |
 |---|---|
@@ -28,6 +44,20 @@ The LAWS Simulator places you inside the targeting workflow of an autonomous wea
 | **Mass Gathering — Wedding Strike** | Al-Radah wedding strike, Yemen, December 12, 2013 |
 | **Fully Autonomous Engagement** | Proposed LAWS capability — zero human decision points |
 | **Signature Strike Protocol** | CIA/JSOC signature strike policy, Pakistan FATA 2008–2015 |
+| **AI Facial Recognition (Lavender)** | Israeli industrial-scale facial profiling, Gaza, 2024 |
+| **Drone Swarm (DARPA OFFSET)** | Cooperative micro-drone swarm assignments, Ft. Moore, 2017 |
+
+---
+
+### Six Tactical Engine Modules
+
+The simulator integrates six functional target evaluation views:
+1. **Target Generation Pipeline**: Visualizes population signals ingestion and compares target densities.
+2. **Lavender Operative Matrix**: Explores target profiling nodes and the statistical 10% error margin.
+3. **Habsora (The Gospel) Structural Engine**: Scans 3D wireframe buildings and measures structural collateral limits.
+4. **Where's Daddy Proximity Tracker**: Simulates residential geofencing waiting for targets to enter family homes.
+5. **Human Interface Command Layer**: Demonstrates the cognitive saturation and rubber-stamping of a 20s review timer.
+6. **IHL Compliance and Accountability**: Audits international laws, Rome Statute, and links to NGO campaigns.
 
 ---
 
@@ -165,15 +195,19 @@ Scenarios are defined in `lib/scenarios.ts`. To add one:
 ## Presentation tips
 
 **For conference demos:**
-- Run full-screen (F11) — the terminal aesthetic reads well on projectors
-- Walk through the "Pattern of Life" scenario first — it's the most emotionally clear
-- Pause at the confidence threshold alert to explain the math: "X% confidence = Y% chance of being wrong"
-- The Assessment screen has direct links to stopkillerrobots.org and the UN CCW process
+- Run full-screen (F11) — the terminal aesthetic reads well on projectors.
+- **Presenter Briefing Panel**: Press the **`P`** key to toggle a overlay card in the top-left detailing the scenario's real-world history, targeting doctrine, specific IHL article conflicts, and campaign advocacy asks.
+- Walk through the "Pattern of Life" scenario first — it's the most emotionally clear.
+- Pause at the confidence threshold alert to explain the math: "X% confidence = Y% chance of being wrong".
+- The Assessment screen has direct links to stopkillerrobots.org and the UN CCW process.
 
-**For pop-up events:**
-- The canvas fallback works without internet — it can run offline
-- The "Fully Autonomous" scenario is the most powerful for audiences unfamiliar with LAWS
-- Consider letting audience members press "advance" themselves — making them an active participant in the workflow is deliberately uncomfortable
+**For pop-up events & exhibitions:**
+- **Kiosk Auto-Advance Mode**: Press the **`K`** key or load the page with `?kiosk=true` in the URL (e.g., `http://localhost:3000/?kiosk=true`). The simulator will automatically progress through the phases and rotate scenarios every 90 seconds.
+- **Manual Takeover**: If a user presses **any key** when kiosk is active, the auto-advance pauses for 30 seconds to let them interact, then resumes automatically.
+- Press **`Escape`** or **`K`** to exit Kiosk Mode.
+- The canvas fallback works without internet — it can run offline.
+- The "Fully Autonomous" scenario is the most powerful for audiences unfamiliar with LAWS.
+- Consider letting audience members press "advance" themselves — making them an active participant in the workflow is deliberately uncomfortable.
 
 ---
 
