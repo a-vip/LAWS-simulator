@@ -30,74 +30,74 @@ const TREATY_DATA: CountryData[] = [
   {
     name: 'United States', position: 'AGAINST', positionNote: 'Opposes a binding instrument; advocates for non-binding political declaration only. DoD Directive 3000.09 governs autonomy.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: 'party', icc: '-', un: true,
-    source: 'https://documents.unoda.org/wp-content/uploads/2023/10/Working-Paper-Submitted-by-the-United-States.pdf',
+    source: 'https://undocs.org/CCW/GGE.1/2023/WP.4',
   },
   {
     name: 'Russia', position: 'AGAINST', positionNote: 'Formally opposes any treaty on LAWS; considers existing IHL sufficient. Has submitted GGE papers opposing new instruments.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: 'party', icc: '-', un: true,
-    source: 'https://documents.unoda.org/wp-content/uploads/2023/10/CCW-GGE-LAWS-2023-WP-Russia.pdf',
+    source: 'https://undocs.org/CCW/GGE.1/2023/WP.5',
   },
   {
     name: 'Israel', position: 'AGAINST', positionNote: 'No binding treaty; existing IHL is adequate. Significant LAWS developer and user — Project Lavender, Gospel AI systems documented.',
     gc: 'party', ccw: '-', ccw2: '-', ccw5: '-', icc: '-', un: false,
-    source: 'https://www.hrw.org/report/2023/12/05/a-mass-assassination-factory',
+    source: 'https://www.972mag.com/mass-assassination-factory-israel-calculated-bombing-gaza/',
   },
   {
     name: 'India', position: 'AGAINST', positionNote: 'Opposes a binding treaty; wants technology-neutral approach. Developing autonomous weapons capabilities.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: '-', icc: '-', un: true,
-    source: 'https://documents.unoda.org/wp-content/uploads/2023/10/CCW-GGE-LAWS-2023-WP-India.pdf',
+    source: 'https://meetings.unoda.org/section/ccw-gge-laws-2023-documents/',
   },
   {
     name: 'South Korea', position: 'AGAINST', positionNote: 'Cautious; supports principles-based approach. Operates autonomous sentry guns (SGR-A1) along DMZ.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: '-', icc: 'party', un: false,
-    source: 'https://autonomousweapons.org/laws-tracker/',
+    source: 'https://undocs.org/CCW/GGE.1/2023/WP.4',
   },
   // NEUTRAL — Voluntary Regulation Only
   {
     name: 'United Kingdom', position: 'NEUTRAL', positionNote: 'Supports political declaration only; developing responsible AI in defence policy. Not committed to binding norms.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: 'party', icc: 'party', un: true,
-    source: 'https://documents.unoda.org/wp-content/uploads/2023/10/CCW-GGE-LAWS-2023-WP-UK.pdf',
+    source: 'https://undocs.org/CCW/GGE.1/2023/WP.4',
   },
   {
     name: 'France', position: 'NEUTRAL', positionNote: 'Favours political declaration and code of conduct. Abstained from pro-treaty resolutions at UN First Committee 2023.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: 'party', icc: 'party', un: true,
-    source: 'https://documents.unoda.org/wp-content/uploads/2023/10/CCW-GGE-LAWS-2023-WP-France.pdf',
+    source: 'https://undocs.org/CCW/GGE.1/2023/WP.4',
   },
   {
     name: 'Germany', position: 'NEUTRAL', positionNote: 'Supports non-binding guiding principles in GGE. Signed the political declaration on LAWS with US, UK, France (Nov 2023).',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: 'party', icc: 'party', un: true,
-    source: 'https://documents.unoda.org/wp-content/uploads/2023/10/CCW-GGE-LAWS-2023-WP-Germany.pdf',
+    source: 'https://undocs.org/CCW/GGE.1/2023/WP.4',
   },
   {
     name: 'Japan', position: 'NEUTRAL', positionNote: 'Cautious, national security concerns. Supports GGE process but no position on binding instrument.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: '-', icc: 'party', un: true,
-    source: 'https://documents.unoda.org/wp-content/uploads/2023/10/CCW-GGE-LAWS-2023-WP-Japan.pdf',
+    source: 'https://undocs.org/CCW/GGE.1/2023/WP.4',
   },
   {
     name: 'Australia', position: 'NEUTRAL', positionNote: 'Supports principles-based approach within CCW. Engages in AUKUS tech sharing including autonomy programmes.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: 'party', icc: 'party', un: true,
-    source: 'https://documents.unoda.org/wp-content/uploads/2023/10/CCW-GGE-LAWS-2023-WP-Australia.pdf',
+    source: 'https://undocs.org/CCW/GGE.1/2023/WP.4',
   },
   // MIXED — Conditional Support
   {
     name: 'China', position: 'MIXED', positionNote: 'Submitted prohibition proposal to CCW in 2019; unclear if genuine or tactical. Largest LAWS developer globally alongside US.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: 'party', icc: '-', un: true,
-    source: 'https://documents.unoda.org/wp-content/uploads/2019/08/CCW-GGE.1-2019-WP.1.pdf',
+    source: 'https://undocs.org/CCW/GGE.1/2019/WP.1',
   },
   {
     name: 'Brazil', position: 'MIXED', positionNote: 'Co-sponsored 2023 UN First Committee resolution on LAWS. Supports negotiating a new legal instrument but not a total ban.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: 'party', icc: 'party', un: true,
-    source: 'https://www.stopkillerrobots.org/laws/',
+    source: 'https://www.stopkillerrobots.org/',
   },
   {
     name: 'Turkey', position: 'MIXED', positionNote: 'Operates KARGU-2 loitering munition (documented in UN Libya report 2021). Officially supports developing international norms.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: '-', icc: '-', un: true,
-    source: 'https://digitallibrary.un.org/record/3882816',
+    source: 'https://undocs.org/S/2021/229',
   },
   {
     name: 'Pakistan', position: 'MIXED', positionNote: 'Advocates new international legal instrument; concerned by LAWS proliferation. Submitted GGE working papers.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: '-', icc: '-', un: true,
-    source: 'https://documents.unoda.org/wp-content/uploads/2023/10/CCW-GGE-LAWS-2023-WP-Pakistan.pdf',
+    source: 'https://meetings.unoda.org/section/ccw-gge-laws-2023-documents/',
   },
   // PRO — Support Binding Treaty
   {
@@ -108,27 +108,27 @@ const TREATY_DATA: CountryData[] = [
   {
     name: 'New Zealand', position: 'PRO', positionNote: 'Supports binding international treaty. Voted yes on UN First Committee resolution 2023. Member of the Group of Friends on LAWS.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: 'party', icc: 'party', un: true,
-    source: 'https://www.stopkillerrobots.org/2023/10/un-first-committee-takes-landmark-vote-on-killer-robots/',
+    source: 'https://www.stopkillerrobots.org/',
   },
   {
     name: 'Panama', position: 'PRO', positionNote: 'Co-sponsored 2023 UNGA LAWS resolution; strong advocate for new binding norms.',
     gc: 'party', ccw: 'party', ccw2: 'signatory', ccw5: 'party', icc: 'party', un: false,
-    source: 'https://www.stopkillerrobots.org/laws/',
+    source: 'https://www.stopkillerrobots.org/',
   },
   {
     name: 'Costa Rica', position: 'PRO', positionNote: 'Diplomatically active in disarmament; supports preemptive prohibition of LAWS. Voted for 2023 UNGA resolution.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: 'party', icc: 'party', un: false,
-    source: 'https://www.stopkillerrobots.org/laws/',
+    source: 'https://www.stopkillerrobots.org/',
   },
   {
     name: 'Mexico', position: 'PRO', positionNote: 'Strong advocate for a binding legal instrument within the UN framework. Co-authored Latin American LAWS joint paper.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: '-', icc: 'party', un: true,
-    source: 'https://documents.unoda.org/wp-content/uploads/2023/10/CCW-GGE-LAWS-WP-GRULAC.pdf',
+    source: 'https://meetings.unoda.org/section/ccw-gge-laws-2023-documents/',
   },
   {
     name: 'Egypt', position: 'PRO', positionNote: 'Speaks for African Group; supports new binding treaty at GGE. Submitted joint African position paper.',
     gc: 'party', ccw: 'party', ccw2: '-', ccw5: '-', icc: '-', un: true,
-    source: 'https://documents.unoda.org/wp-content/uploads/2023/10/CCW-GGE-LAWS-2023-WP-AfricanGroup.pdf',
+    source: 'https://meetings.unoda.org/section/ccw-gge-laws-2023-documents/',
   },
 ];
 
@@ -187,19 +187,18 @@ export function IHLPolicyModal({ onClose }: IHLPolicyModalProps) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(5px)',
+        background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)',
         zIndex: 99999,
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: '16px',
-        overflowY: 'auto',
-        paddingTop: '40px',
+        overflow: 'hidden',
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '720px', maxWidth: '100%',
-          maxHeight: 'calc(100vh - 80px)',
+          width: '740px', maxWidth: '100%',
+          height: 'min(680px, calc(100vh - 32px))',
           background: 'rgba(5, 8, 14, 0.99)',
           border: '1px solid rgba(0, 150, 255, 0.25)',
           borderRadius: '10px', display: 'flex', flexDirection: 'column', overflow: 'hidden',
@@ -275,7 +274,7 @@ export function IHLPolicyModal({ onClose }: IHLPolicyModalProps) {
         </div>
 
         {/* Table */}
-        <div style={{ overflowY: 'auto', flex: 1 }} className="ihl-table-scroll">
+        <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }} className="ihl-table-scroll">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead style={{ position: 'sticky', top: 0, background: 'rgba(5,8,14,0.98)', zIndex: 1 }}>
               <tr>

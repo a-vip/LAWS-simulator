@@ -53,7 +53,7 @@ export function SupportButton({ onChangelogOpen }: SupportButtonProps) {
     <>
       {/* Click-outside backdrop */}
       <div
-        style={{ position: 'fixed', inset: 0, zIndex: 99990 }}
+        style={{ position: 'fixed', inset: 0, zIndex: 1000000 }}
         onClick={() => setOpen(false)}
       />
       {/* Dropdown card */}
@@ -68,7 +68,7 @@ export function SupportButton({ onChangelogOpen }: SupportButtonProps) {
           borderRadius: '10px', padding: '11px',
           boxShadow: '0 16px 48px rgba(0,0,0,0.9), 0 0 24px rgba(236,72,153,0.12)',
           display: 'flex', flexDirection: 'column', gap: '9px',
-          zIndex: 99991, backdropFilter: 'blur(16px)',
+          zIndex: 1000001, backdropFilter: 'blur(16px)',
           fontFamily: 'monospace',
         }}
         onClick={(e) => e.stopPropagation()}
