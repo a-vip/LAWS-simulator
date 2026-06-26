@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* MapLibre GL JS */
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
 :root {
   --font-mono: 'JetBrains Mono', 'Space Mono', 'Courier New', monospace;
 }
@@ -93,17 +96,25 @@ gmp-map-3d-marker {
   height: 100% !important;
 }
 
-/* Leaflet Container & Tactical Satellite imagery styling */
-.leaflet-container {
+/* MapLibre GL JS Container — tactical satellite styling */
+.maplibregl-map {
   background: #050a12 !important;
   font-family: var(--font-mono), monospace !important;
-  border-radius: 4px;
 }
 
-.leaflet-tile {
-  filter: brightness(0.6) contrast(1.4) saturate(0.85) hue-rotate(-2deg);
+/* Hide default MapLibre controls (we use our own HUD) */
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-logo,
+.maplibregl-ctrl-group {
+  display: none !important;
 }
 
+/* Raster tile filter for tactical color grade */
+.maplibregl-canvas {
+  filter: brightness(0.62) contrast(1.38) saturate(0.82) hue-rotate(-2deg);
+}
+
+/* Leaflet legacy — only applies if Leaflet is loaded for other pages */
 .leaflet-marker-icon {
   background: none !important;
   border: none !important;
@@ -238,17 +249,10 @@ gmp-map-3d-marker {
   mix-blend-mode: screen;
 }
 
-/* Cinematic Tilted Leaflet Map transform resets */
-.leaflet-tilt-map {
-  transform-style: preserve-3d !important;
-}
-
-/* Ensure Leaflet panes preserve 3D stacking contexts */
-.leaflet-pane,
-.leaflet-layer,
-.leaflet-marker-pane,
-.leaflet-marker-icon {
-  transform-style: preserve-3d !important;
+/* MapLibre canvas layer ordering */
+.maplibregl-canvas-container {
+  position: absolute;
+  inset: 0;
 }
 
 /* Volumetric CSS 3D Car Model */
@@ -684,9 +688,6 @@ gmp-map-3d-marker {
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
-}
-.tactical-tooltip-container .leaflet-tooltip-content {
-  margin: 0;
 }
 .tactical-tooltip-container::before {
   border-top-color: rgba(8, 12, 18, 0.95) !important;

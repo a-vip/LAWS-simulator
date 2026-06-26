@@ -1,7 +1,7 @@
 import type { TacticalOverlayData } from './types';
 
-// Helper: generate arc polygon points from center, radius, start/end bearing
-function offsetLatLng(lat: number, lng: number, distM: number, bearingDeg: number): { lat: number; lng: number } {
+// Helper: generate offset lat/lng from center, distance, bearing
+export function offsetLatLng(lat: number, lng: number, distM: number, bearingDeg: number): { lat: number; lng: number } {
   const R = 6371000;
   const d = distM / R;
   const brng = (bearingDeg * Math.PI) / 180;
@@ -530,5 +530,3 @@ export const TACTICAL_DATA: Record<string, TacticalOverlayData> = {
 export function getTacticalData(scenarioId: string): TacticalOverlayData | null {
   return TACTICAL_DATA[scenarioId] ?? null;
 }
-
-export { offsetLatLng };
