@@ -98,13 +98,35 @@ export function TargetIntelPanel() {
       )}
 
       {/* Based on disclosure */}
-      {activeScenario?.basedOn && (
-        <div className="border-t border-terminal-border pt-2">
-          <p className="text-[9px] text-terminal-amber/80 leading-relaxed">
-            ℹ {activeScenario.basedOn}
-          </p>
-        </div>
-      )}
+      {activeScenario?.basedOn && (() => {
+        const sources: Record<string, string> = {
+          'pattern-of-life': 'https://theintercept.com/drone-papers/',
+          'building-strike': 'https://airwars.org/conflict/u-s-led-coalition-in-iraq-syria/',
+          'wedding-strike': 'https://www.hrw.org/report/2014/02/19/wedding-became-funeral/us-drone-attack-marriage-procession-yemen',
+          'autonomous-engagement': 'https://www.icrc.org/en/document/icrc-position-autonomous-weapon-systems',
+          'signature-strike': 'https://www.thebureauinvestigates.com/projects/drone-war/pakistan',
+          'facial-recognition': 'https://www.972mag.com/lavender-ai-israeli-army-gaza/',
+          'drone-swarm': 'https://www.darpa.mil/program/offensive-swarm-enabled-tactics',
+        };
+        const url = sources[activeScenario.id];
+        return (
+          <div className="border-t border-terminal-border pt-2">
+            <p className="text-[9px] text-terminal-amber/80 leading-relaxed flex flex-wrap items-center gap-1.5">
+              <span>ℹ {activeScenario.basedOn}</span>
+              {url && (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 text-terminal-blue hover:text-blue-300 font-bold underline underline-offset-1 transition-colors text-[8.5px] shrink-0"
+                >
+                  [verified source ↗]
+                </a>
+              )}
+            </p>
+          </div>
+        );
+      })()}
     </div>
   );
 }

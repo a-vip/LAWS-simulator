@@ -88,7 +88,9 @@ function arcGeoJSON(lat: number, lng: number, radiusM: number, startBearing: num
 //   → scatter (blast avoidance), camera pull back
 // ═══════════════════════════════════════════════════════════════════════════
 
-type DroneStage = 'fob-loiter' | 'transit' | 'hunting' | 'terminal' | 'scatter' | 'hidden';
+
+type DroneStage = 'fob-loiter' | 'transit' | 'hunting' | 'terminal' | 'scatter' | 'post-strike-loiter' | 'hidden';
+
 
 function getDroneStageForPhase(phase: string): DroneStage {
   switch (phase) {
@@ -108,7 +110,7 @@ function getDroneStageForPhase(phase: string): DroneStage {
     case 'impact':
       return 'scatter';
     case 'assessment':
-      return 'hidden';
+      return 'post-strike-loiter';
     default:
       return 'hidden';
   }
@@ -127,6 +129,14 @@ export function MapLibreSatellite({ className, onMapReady }: {
   const screenFlashRef = useRef<HTMLDivElement>(null);
   const thermalRef = useRef<HTMLDivElement>(null);
   const prevPhaseRef = useRef<string>('idle');
+
+  // Hover tooltip state
+  const [tooltip, setTooltip] = useState<{
+    x: number; y: number;
+    type: 'drone' | 'target';
+    label: string;
+    lines: { key: string; value: string; color?: string }[];
+  } | null>(null);
 
   // Continuous target drift state (never teleports)
   const targetPosRef = useRef<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
@@ -335,10 +345,102 @@ export function MapLibreSatellite({ className, onMapReady }: {
       img.src = makeDroneSvgUrl(color);
     });
 
+    // Drone glow rings — high-contrast halo under each drone icon
+    map.addLayer({
+      id: 'drone-glow-rings', type: 'circle', source: 'drones',
+      paint: {
+        'circle-radius': 16,
+        'circle-color': ['get', 'glowColor'],
+        'circle-opacity': 0.30,
+        'circle-blur': 0.5,
+      },
+    });
+    map.addLayer({
+      id: 'drone-outer-rings', type: 'circle', source: 'drones',
+      paint: {
+        'circle-radius': 10,
+        'circle-color': 'transparent',
+        'circle-stroke-color': ['get', 'glowColor'],
+        'circle-stroke-width': 1.2,
+        'circle-stroke-opacity': 0.6,
+      },
+    });
+
     map.addLayer({
       id: 'drones-layer', type: 'symbol', source: 'drones',
-      layout: { 'icon-image': ['get', 'icon'], 'icon-size': 0.55, 'icon-rotate': ['get', 'heading'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'text-field': ['get', 'label'], 'text-size': 8, 'text-font': ['Open Sans Regular'], 'text-anchor': 'top', 'text-offset': [0, 2] },
-      paint: { 'text-color': ['get', 'textColor'], 'text-halo-color': '#000000', 'text-halo-width': 1.5, 'icon-opacity': 1 },
+      layout: {
+        'icon-image': ['get', 'icon'],
+        'icon-size': 0.72,
+        'icon-rotate': ['get', 'heading'],
+        'icon-rotation-alignment': 'map',
+        'icon-allow-overlap': true,
+        'text-field': ['get', 'label'],
+        'text-size': 9,
+        'text-font': ['Open Sans Bold'],
+        'text-anchor': 'top',
+        'text-offset': [0, 2.2],
+        'text-allow-overlap': false,
+      },
+      paint: {
+        'text-color': ['get', 'textColor'],
+        'text-halo-color': '#000000',
+        'text-halo-width': 2,
+        'icon-opacity': 1,
+      },
+    });
+
+    // Hover tooltip handlers — drones
+    map.on('mousemove', 'drones-layer', (e: any) => {
+      if (!e.features?.length) return;
+      map.getCanvas().style.cursor = 'crosshair';
+      const feat = e.features[0];
+      const props = feat.properties;
+      const label: string = props.label ?? 'MQ-9 REAPER';
+      const role = label.includes('ALPHA') ? 'ISR Reconnaissance' : label.includes('BETA') ? 'Strike Asset — Weapons Free' : 'Overwatch / C2 Relay';
+      const ordnance = label.includes('BETA') ? 'AGM-114 Hellfire × 4' : 'N/A (surveillance only)';
+      setTooltip({
+        x: e.point.x, y: e.point.y,
+        type: 'drone',
+        label,
+        lines: [
+          { key: 'PLATFORM', value: 'MQ-9 Reaper — General Atomics' },
+          { key: 'ROLE', value: role },
+          { key: 'ALTITUDE', value: '~15,000 ft / 4,572 m AGL' },
+          { key: 'ENDURANCE', value: '27 hrs — no pilot fatigue' },
+          { key: 'ORDNANCE', value: ordnance },
+          { key: '⚠ ADVOCACY', value: 'Under LAWS, this platform can autonomously select and engage targets. No human needs to approve each shot.', color: '#ff1a2e' },
+        ],
+      });
+    });
+    map.on('mouseleave', 'drones-layer', () => {
+      map.getCanvas().style.cursor = '';
+      setTooltip(null);
+    });
+
+    // Hover tooltip handlers — target reticle
+    map.on('mousemove', 'target-reticle-outer', (e: any) => {
+      if (!activeScenario) return;
+      map.getCanvas().style.cursor = 'crosshair';
+      const conf = activeScenario.confidenceThreshold;
+      const errPct = 100 - conf;
+      const primary = activeScenario.targets.find(t => t.id === activeScenario.primaryTargetId);
+      setTooltip({
+        x: e.point.x, y: e.point.y,
+        type: 'target',
+        label: primary?.designator ?? 'TARGET',
+        lines: [
+          { key: 'CONFIDENCE', value: `${conf}% (Algorithm output)` },
+          { key: 'ERROR PROBABILITY', value: `${errPct}% — 1 in ${Math.round(100 / errPct)} strikes kills the wrong person`, color: '#ff1a2e' },
+          { key: 'IDENTITY CONFIRMED', value: 'NO — metadata profile only', color: '#ff1a2e' },
+          { key: 'CIVILIAN STATUS', value: 'UNCONFIRMED — IHL Art. 50 presumption applies', color: '#ffaa00' },
+          { key: 'NOTES', value: (primary?.metadata.notes?.substring(0, 100) ?? 'No detail available') + '…' },
+          { key: '⚖ IHL VIOLATION', value: 'A strike without positive identity confirmation violates the Principle of Distinction (Geneva Conventions, Protocol I, Art. 48)', color: '#ff1a2e' },
+        ],
+      });
+    });
+    map.on('mouseleave', 'target-reticle-outer', () => {
+      map.getCanvas().style.cursor = '';
+      setTooltip(null);
     });
   }
 
@@ -492,7 +594,8 @@ export function MapLibreSatellite({ className, onMapReady }: {
         if (droneStage === 'transit') transitProgressRef.current = Math.min(transitProgressRef.current + 0.004, 1.0);
         if (droneStage === 'hunting') huntProgressRef.current = Math.min(huntProgressRef.current + 0.005, 1.0);
         if (droneStage === 'terminal') swoopProgressRef.current = Math.min(swoopProgressRef.current + 0.006, 1.0);
-        if (droneStage === 'scatter') scatterProgressRef.current = Math.min(scatterProgressRef.current + 0.008, 1.0);
+        // Scatter: slow and capped — drones visibly move back, not stutter-teleport
+        if (droneStage === 'scatter') scatterProgressRef.current = Math.min(scatterProgressRef.current + 0.003, 1.0);
 
         droneConfigs.forEach((cfg, i) => {
           let droneLat: number;
@@ -557,11 +660,19 @@ export function MapLibreSatellite({ className, onMapReady }: {
               };
             }
             const start = scatterStartRef[i]!;
-            // Scatter outward fast
-            const scatterDist = 0.025 * scatterProgressRef.current;
-            const scatterAngle = (i * (Math.PI * 2 / 3)) + (angle * 0.1);
+            // Slow scatter — max 0.006° (~600m), smooth exit from blast zone
+            const scatterDist = 0.006 * scatterProgressRef.current;
+            const scatterAngle = (i * (Math.PI * 2 / 3)) + (angle * 0.05);
             droneLat = start.lat + scatterDist * Math.cos(scatterAngle);
             droneLng = start.lng + scatterDist * Math.sin(scatterAngle);
+
+          } else if (droneStage === 'post-strike-loiter') {
+            // Solemn wide orbit above strike epicenter — ISR battle damage assessment
+            const postLoiterR = 0.008;
+            const a = angle * cfg.fobOrbitS * 0.4 + cfg.fobOrbitO;
+            droneLat = tgt.lat + postLoiterR * Math.cos(a);
+            droneLng = tgt.lng + postLoiterR * Math.sin(a) * 0.8;
+
           } else {
             return; // hidden
           }
@@ -571,7 +682,15 @@ export function MapLibreSatellite({ className, onMapReady }: {
 
           droneFeatures.push({
             type: 'Feature',
-            properties: { icon: cfg.icon, heading, label: droneStage === 'fob-loiter' ? `${cfg.label} [LOITER]` : cfg.label, textColor: cfg.color },
+            properties: {
+              icon: cfg.icon,
+              heading,
+              label: droneStage === 'fob-loiter' ? `▲ ${cfg.label} [LOITER]`
+                : droneStage === 'post-strike-loiter' ? `▲ ${cfg.label} [BDA]`
+                : `▲ ${cfg.label}`,
+              textColor: cfg.color,
+              glowColor: cfg.color,
+            },
             geometry: { type: 'Point', coordinates: [droneLng, droneLat] },
           });
 
@@ -693,6 +812,7 @@ export function MapLibreSatellite({ className, onMapReady }: {
   return (
     <div className={`w-full h-full block relative ${className ?? ''}`}>
       <div ref={mapContainerRef} className="w-full h-full block" style={{ minHeight: '100%' }} />
+
       {/* White flash on impact */}
       <div
         ref={screenFlashRef}
@@ -705,6 +825,50 @@ export function MapLibreSatellite({ className, onMapReady }: {
         className="absolute inset-0 pointer-events-none z-[9998]"
         style={{ display: 'none', opacity: 0, background: 'radial-gradient(circle at 50% 55%, rgba(255,100,0,0.35) 0%, rgba(255,50,0,0.12) 40%, transparent 75%)' }}
       />
+
+      {/* ── HOVER TOOLTIP ─────────────────────────────────────────────── */}
+      {tooltip && (
+        <div
+          className="absolute z-[9997] pointer-events-none font-mono"
+          style={{
+            left: tooltip.x + 16,
+            top: tooltip.y - 8,
+            maxWidth: 280,
+          }}
+        >
+          <div className={`rounded border shadow-2xl text-[9px] ${
+            tooltip.type === 'target'
+              ? 'bg-[#0a0208]/95 border-terminal-red/60'
+              : 'bg-[#020a14]/95 border-terminal-blue/60'
+          }`}>
+            {/* Tooltip header */}
+            <div className={`px-2.5 py-1.5 border-b flex items-center gap-1.5 ${
+              tooltip.type === 'target' ? 'border-terminal-red/40' : 'border-terminal-blue/40'
+            }`}>
+              <span className={`font-black tracking-widest text-[8.5px] ${
+                tooltip.type === 'target' ? 'text-terminal-red' : 'text-terminal-blue'
+              }`}>
+                {tooltip.type === 'target' ? '⊕ TARGET' : '▲ ASSET'}
+              </span>
+              <span className="text-terminal-text font-bold text-[9px]">{tooltip.label}</span>
+            </div>
+            {/* Tooltip lines */}
+            <div className="px-2.5 py-1.5 space-y-0.5">
+              {tooltip.lines.map((line, idx) => (
+                <div key={idx} className="flex gap-1.5">
+                  <span className="text-terminal-text-faint shrink-0 w-[90px]">{line.key}:</span>
+                  <span
+                    className="leading-tight"
+                    style={{ color: line.color ?? '#a0b0c0' }}
+                  >
+                    {line.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
