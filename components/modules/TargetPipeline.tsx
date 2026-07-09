@@ -1,490 +1,605 @@
 'use client';
 import { useCallback, useRef, useState, useEffect } from 'react';
-import { ModuleCanvas, drawHUDText, drawProgressBar } from './ModuleCanvas';
+import { ModuleCanvas, drawHUDText } from './ModuleCanvas';
 import { ExternalLink } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AUTHORITATIVE DATA — from +972 Magazine Lavender investigation (Apr 2024)
-//   & UN OCHA Gaza population data (2023)
+// AUTHORITATIVE DATA SOURCES
+//   • +972 Magazine / Local Call — "Lavender: The AI Machine Directing Israel's
+//     Bombing Spree in Gaza" (Apr 3, 2024)
+//   • UN OCHA — Gaza Population Data (2023)
+//   • ICRC — Autonomous Weapon Systems Position Paper (2021)
 // ─────────────────────────────────────────────────────────────────────────────
-const GAZA_POPULATION     = 2_300_000; // UN OCHA 2023
-const LAVENDER_TARGETS    = 37_000;    // +972 Magazine
-const LAVENDER_DAYS       = 210;       // Oct 2023 → May 2024
-const TARGETS_PER_DAY     = LAVENDER_TARGETS / LAVENDER_DAYS; // ≈ 176.2
-const PROFILES_PER_DAY    = GAZA_POPULATION / LAVENDER_DAYS;  // ≈ 10,952
-const SIM_OPERATIONAL_DAYS = 35;
-const IRAQ_AREA_KM2       = 438_317;
-const GAZA_AREA_KM2       = 365;
+const GAZA_POPULATION      = 2_300_000;  // UN OCHA 2023
+const LAVENDER_TARGETS     = 37_000;     // +972 Magazine — total targets generated
+const LAVENDER_OP_DAYS     = 210;        // Oct 2023 → May 2024 (~7 months)
+const TARGETS_PER_DAY      = LAVENDER_TARGETS / LAVENDER_OP_DAYS;  // 176.19 / day
+const PROFILES_PER_DAY     = GAZA_POPULATION / LAVENDER_OP_DAYS;   // 10,952 / day
+const SIM_DAYS             = 35;         // simulation window
+const REVIEW_SECONDS       = 20;         // avg officer review per target (Lavender data)
+const ERROR_RATE_LOW       = 10;         // % — conservative IHL estimate
+const ERROR_RATE_HIGH      = 17;         // % — upper bound from casualty data
+
+// These ratios represent the Lavender funnel population flow:
+// 2.3M profiles → ~500K flagged → ~50K scored → ~37K classified → strike
+const FUNNEL_STAGES = [
+  { label: 'MASS INGESTION',       sub: '2.3M PROFILES',  hex: '#0096ff' },
+  { label: 'SIGNALS MATCHING',     sub: '~500K FLAGGED',  hex: '#38bdf8' },
+  { label: 'BEHAVIOURAL SCORING',  sub: '~50K SCORED',    hex: '#ffaa00' },
+  { label: 'AI CLASSIFICATION',    sub: '~37K TARGETS',   hex: '#ff6600' },
+  { label: 'STRIKE AUTHORIZATION', sub: '20-SEC REVIEW',  hex: '#ff1a2e' },
+] as const;
 
 const SPEED_OPTIONS = [0.25, 0.5, 1, 2, 5, 10] as const;
 type Speed = typeof SPEED_OPTIONS[number];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Funnel stage definitions
-// ─────────────────────────────────────────────────────────────────────────────
-const FUNNEL_STAGES = [
-  { label: 'MASS INGESTION',        sublabel: '2.3M PROFILES', color: 'rgba(0,150,255,0.7)',   pct: 1.00 },
-  { label: 'SIGNALS MATCHING',      sublabel: '~500K FLAGGED',  color: 'rgba(80,180,255,0.7)',  pct: 0.217 },
-  { label: 'BEHAVIOURAL SCORING',   sublabel: '~50K SCORED',    color: 'rgba(255,170,0,0.7)',   pct: 0.022 },
-  { label: 'AI CLASSIFICATION',     sublabel: '~37K TARGETS',   color: 'rgba(255,80,0,0.7)',    pct: 0.016 },
-  { label: 'STRIKE AUTHORIZATION',  sublabel: '20-SEC REVIEW',  color: 'rgba(255,26,46,0.9)',   pct: 0.016 },
-];
+interface Particle  { x: number; y: number; vy: number; sz: number; al: number; stage: number; }
+interface Dot       { x: number; y: number; r: number; ph: number; }
+interface TgtEntry  { id: string; conf: number; status: 'CLASSIFIED'|'FLAGGED'|'CLEARED'; }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Target list entry
-// ─────────────────────────────────────────────────────────────────────────────
-interface TargetEntry { id: string; conf: number; status: 'CLASSIFIED' | 'FLAGGED' | 'REVIEWED'; day: number; }
-
-function makeTargetId(n: number): string {
-  return `TGT-${String(n).padStart(5, '0')}`;
+// Seeded random (LCG) for reproducible Iraq dots
+function lcgRand(seed: number): () => number {
+  let s = seed;
+  return () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 0xffffffff; };
 }
 
-function makeTarget(n: number, day: number): TargetEntry {
-  const r = Math.random();
-  const conf = 82 + Math.floor(Math.random() * 16); // 82–97%
-  const status: TargetEntry['status'] = r < 0.72 ? 'CLASSIFIED' : r < 0.9 ? 'FLAGGED' : 'REVIEWED';
-  return { id: makeTargetId(n), conf, status, day };
-}
-
-// Particle for funnel
-interface FunnelParticle {
-  x: number; y: number; vy: number; size: number; alpha: number;
-  stage: number; // 0-4 matching FUNNEL_STAGES
-}
-
-// Density dot
-interface DensityDot { x: number; y: number; radius: number; phase: number; }
-
+// ─────────────────────────────────────────────────────────────────────────────
 export function TargetPipeline() {
-  // ── React state for HTML overlay elements ──────────────────────────────
-  const [speed, setSpeed] = useState<Speed>(1);
-  const [targetList, setTargetList] = useState<TargetEntry[]>([]);
-  const targetListRef = useRef<HTMLDivElement>(null);
+  // React state (only what the HTML overlays need)
+  const [speed, setSpeed]           = useState<Speed>(1);
+  const [displayDay, setDisplayDay] = useState(0);
+  const [tgtList, setTgtList]       = useState<TgtEntry[]>([]);
+  const [mapEndPx, setMapEndPx]     = useState(310); // dynamic: where density maps end in px
 
-  // ── Canvas animation refs ──────────────────────────────────────────────
-  const speedRef = useRef<Speed>(1);
-  const simTimeRef = useRef(0);       // accumulated sim-seconds (affected by speed)
-  const lastRealTimeRef = useRef<number | null>(null);
-  const funnelParticles = useRef<FunnelParticle[]>([]);
-  const gazaDots = useRef<DensityDot[]>([]);
-  const iraqDots = useRef<DensityDot[]>([]);
-  const initialized = useRef(false);
-  const targetCountRef = useRef(0);   // how many targets generated so far
-  const targetListReactRef = useRef<TargetEntry[]>([]);
+  // Refs — never cause re-renders
+  const speedRef     = useRef<Speed>(1);
+  const simDayRef    = useRef(0);          // master: 0–35, set by loop or scrubber
+  const daySnapRef   = useRef(0);          // last value sent to React state (throttled)
+  const particles    = useRef<Particle[]>([]);
+  const gazaDots     = useRef<Dot[]>([]);
+  const iraqDots     = useRef<Dot[]>([]);
+  const tgtCountRef  = useRef(0);          // how many targets accumulated so far
+  const tgtDataRef   = useRef<TgtEntry[]>([]);
+  const initDone     = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const listRef      = useRef<HTMLDivElement>(null);
+  const isDragging   = useRef(false);
 
-  // Keep speedRef in sync
+  // Sync speed ref whenever state changes
   useEffect(() => { speedRef.current = speed; }, [speed]);
 
-  // Scroll target list to bottom when new targets arrive
+  // Auto-scroll target list
   useEffect(() => {
-    if (targetListRef.current) {
-      targetListRef.current.scrollTop = targetListRef.current.scrollHeight;
+    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [tgtList]);
+
+  // Compute where density maps end so we can position HTML overlays below them
+  useEffect(() => {
+    const compute = () => {
+      if (!containerRef.current) return;
+      const h   = containerRef.current.offsetHeight;
+      const mapH = Math.min((h - 62) * 0.42, 220);
+      setMapEndPx(62 + 18 + mapH); // panelY + mapTopOffset + mapH
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, []);
+
+  // ── Timeline scrub helper (used by click + drag) ───────────────────────
+  const applyScrub = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const day  = pct * SIM_DAYS;
+    const prev = simDayRef.current;
+    simDayRef.current = day;
+    setDisplayDay(day);
+
+    // Scrubbing backward — reset accumulated targets
+    if (day < prev) {
+      const exp = Math.floor(day * TARGETS_PER_DAY);
+      tgtCountRef.current = exp;
+      tgtDataRef.current  = tgtDataRef.current.slice(0, exp);
+      setTgtList([...tgtDataRef.current.slice(-120)]);
+      // Trim Gaza dots to match
+      const dotTarget = Math.floor(day * TARGETS_PER_DAY / 20);
+      while (gazaDots.current.length > dotTarget) gazaDots.current.pop();
     }
-  }, [targetList]);
+  }, []);
 
-  // ── Canvas draw callback ───────────────────────────────────────────────
-  const draw = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number, t: number, dt: number) => {
-    // ── Sim-time accumulation (speed-scaled) ──────────────────────────
-    const scaledDt = Math.min(dt, 0.1) * speedRef.current;
-    simTimeRef.current += scaledDt;
-    const simT = simTimeRef.current;
+  // Jump to exact day (button)
+  const jumpTo = useCallback((day: number) => {
+    const prev = simDayRef.current;
+    simDayRef.current = day;
+    setDisplayDay(day);
+    if (day < prev) {
+      const exp = Math.floor(day * TARGETS_PER_DAY);
+      tgtCountRef.current = exp;
+      tgtDataRef.current  = tgtDataRef.current.slice(0, exp);
+      setTgtList([...tgtDataRef.current.slice(-120)]);
+      const dotTarget = Math.floor(day * TARGETS_PER_DAY / 20);
+      while (gazaDots.current.length > dotTarget) gazaDots.current.pop();
+    }
+  }, []);
 
-    // Day elapsed (0–35)
-    const totalSimSeconds = SIM_OPERATIONAL_DAYS * (1 / speedRef.current) * 60; // 1 real-min per sim-day at 1×
-    const dayElapsed = Math.min(simT / 60, SIM_OPERATIONAL_DAYS); // 1 real-second = 1 sim-day/60
+  // ── CANVAS DRAW ────────────────────────────────────────────────────────
+  const draw = useCallback((
+    ctx: CanvasRenderingContext2D, w: number, h: number, _t: number, dt: number
+  ) => {
+    // ── Time accumulation (speed-scaled, capped to avoid spiral-of-death)
+    const clampedDt = Math.min(dt, 0.1);
+    simDayRef.current = Math.min(
+      simDayRef.current + (clampedDt * speedRef.current) / 60,
+      SIM_DAYS
+    );
+    const day = simDayRef.current;
 
-    // Derived metrics (mathematically accurate)
-    const profilesIngested = Math.min(Math.floor(dayElapsed * PROFILES_PER_DAY), GAZA_POPULATION);
-    const targetsExpected  = Math.min(Math.floor(dayElapsed * TARGETS_PER_DAY), LAVENDER_TARGETS);
+    // ── Derived metrics (mathematically precise, all from same `day` value)
+    // These are the ONLY source of truth for every displayed number:
+    const profilesIngested  = Math.min(Math.floor(day * PROFILES_PER_DAY), GAZA_POPULATION);
+    const targetsGenerated  = Math.min(Math.floor(day * TARGETS_PER_DAY),  LAVENDER_TARGETS);
+    const reviewSecTotal    = targetsGenerated * REVIEW_SECONDS;
+    const reviewHours       = Math.floor(reviewSecTotal / 3600);
+    const reviewMins        = Math.floor((reviewSecTotal % 3600) / 60);
+    const errLow            = Math.floor(targetsGenerated * ERROR_RATE_LOW  / 100);
+    const errHigh           = Math.floor(targetsGenerated * ERROR_RATE_HIGH / 100);
+    const ratePerDay        = day > 0.05 ? (targetsGenerated / day).toFixed(0) : '0';
 
-    // ── Init dots ────────────────────────────────────────────────────
-    if (!initialized.current) {
-      initialized.current = true;
-      for (let i = 0; i < 110; i++) {
-        iraqDots.current.push({ x: Math.random(), y: Math.random(), radius: 2 + Math.random() * 2.5, phase: Math.random() * Math.PI * 2 });
+    // Throttle React state update (every ~100ms, not every frame)
+    if (Math.abs(day - daySnapRef.current) > 0.016 || day === 0 || day === SIM_DAYS) {
+      daySnapRef.current = day;
+      setDisplayDay(day);
+    }
+
+    // ── Init: seeded Iraq dots (reproducible)
+    if (!initDone.current) {
+      initDone.current = true;
+      const rand = lcgRand(0xdeadbeef);
+      for (let i = 0; i < 120; i++) {
+        iraqDots.current.push({ x: rand(), y: rand(), r: 2 + rand() * 2.5, ph: rand() * Math.PI * 2 });
       }
     }
 
-    // Grow Gaza dots to match targetsExpected
-    while (gazaDots.current.length < Math.min(targetsExpected / 20, 1850)) {
-      gazaDots.current.push({ x: Math.random(), y: Math.random(), radius: 1.5 + Math.random() * 2.5, phase: Math.random() * Math.PI * 2 });
+    // Gaza dots grow proportionally to targetsGenerated
+    const targetDots = Math.min(Math.floor(targetsGenerated / 20), 1850);
+    while (gazaDots.current.length < targetDots) {
+      gazaDots.current.push({
+        x: Math.random(), y: Math.random(),
+        r: 1.5 + Math.random() * 2.5,
+        ph: Math.random() * Math.PI * 2,
+      });
     }
 
-    // Push new target list entries to React state (throttled)
-    if (targetsExpected > targetCountRef.current) {
-      const newTargets: TargetEntry[] = [];
-      const toAdd = Math.min(targetsExpected - targetCountRef.current, 8);
+    // Accumulate target list (forward only; backward reset handled in jumpTo/scrub)
+    if (targetsGenerated > tgtCountRef.current) {
+      const toAdd = Math.min(targetsGenerated - tgtCountRef.current, 10);
       for (let i = 0; i < toAdd; i++) {
-        const entry = makeTarget(targetCountRef.current + i + 1, Math.floor(dayElapsed));
-        newTargets.push(entry);
-        targetListReactRef.current.push(entry);
+        const n = tgtCountRef.current + i + 1;
+        const r = Math.random();
+        const entry: TgtEntry = {
+          id:     `TGT-${String(n).padStart(5, '0')}`,
+          conf:   82 + Math.floor(Math.random() * 16),
+          status: r < 0.72 ? 'CLASSIFIED' : r < 0.90 ? 'FLAGGED' : 'CLEARED',
+        };
+        tgtDataRef.current.push(entry);
       }
-      targetCountRef.current = targetsExpected;
-      // Keep list capped at last 120 entries
-      if (targetListReactRef.current.length > 120) targetListReactRef.current = targetListReactRef.current.slice(-120);
-      setTargetList([...targetListReactRef.current]);
+      tgtCountRef.current = targetsGenerated;
+      if (tgtDataRef.current.length > 120) tgtDataRef.current = tgtDataRef.current.slice(-120);
+      setTgtList([...tgtDataRef.current]);
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // LAYOUT
-    // ─────────────────────────────────────────────────────────────────
-    const panelY = 62;
-    const panelH = h - panelY;
-    const leftW = w * 0.38;
-    const mapY = panelY + 20;
-    const mapH = Math.min(panelH * 0.46, 240);
+    // ──────────────────────────────────────────────────────────────────────
+    // LAYOUT CONSTANTS
+    // ──────────────────────────────────────────────────────────────────────
+    const panelY   = 62;
+    const leftW    = Math.floor(w * 0.37);
+    const mapY     = panelY + 20;
+    const mapH     = Math.min((h - panelY) * 0.42, 220);
+    const gap      = 8;
+    const halfW    = (leftW - 14 * 2 - gap) / 2;
+    const iraqX    = 14;
+    const gazaX    = iraqX + halfW + gap;
 
-    // ─── LEFT: Theater Density Comparison ────────────────────────────
-    drawHUDText(ctx, 'THEATER DENSITY MAPPING', 14, panelY + 13, '#0096ff', 9);
+    // ──────────────────────────────────────────────────────────────────────
+    // ① THEATER DENSITY MAPPING
+    // ──────────────────────────────────────────────────────────────────────
+    drawHUDText(ctx, 'THEATER DENSITY MAPPING', 14, panelY + 12, '#0096ff', 8);
 
-    // Iraq map
-    const iraqX = 14;
-    const iraqW = leftW * 0.46 - 8;
-    ctx.strokeStyle = 'rgba(0, 212, 126, 0.25)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(iraqX, mapY, iraqW, mapH);
+    // ── Iraq panel ──
+    ctx.strokeStyle = 'rgba(0,212,126,0.22)';
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(iraqX, mapY, halfW, mapH);
 
-    // Iraq label
-    drawHUDText(ctx, `IRAQ`, iraqX + 4, mapY - 10, '#536878', 7);
-    drawHUDText(ctx, `${IRAQ_AREA_KM2.toLocaleString()} km²`, iraqX + 4, mapY - 2, '#2a3a4a', 6);
+    // Label INSIDE box (top-left pip with dim background)
+    ctx.fillStyle = 'rgba(5,5,8,0.72)';
+    ctx.fillRect(iraqX + 2, mapY + 2, halfW - 4, 22);
+    drawHUDText(ctx, 'IRAQ',          iraqX + 6, mapY + 11, '#00d47e', 7);
+    drawHUDText(ctx, '438,317 km²',   iraqX + 6, mapY + 20, '#2a4a3a', 6);
 
     for (const dot of iraqDots.current) {
-      const dx = iraqX + dot.x * iraqW;
-      const dy = mapY + dot.y * mapH;
-      const a = 0.25 + 0.15 * Math.sin(t * 1.8 + dot.phase);
       ctx.beginPath();
-      ctx.arc(dx, dy, dot.radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0, 212, 126, ${a})`;
+      ctx.arc(
+        iraqX + 4 + dot.x * (halfW - 8),
+        mapY  + 4 + dot.y * (mapH  - 8),
+        dot.r, 0, Math.PI * 2
+      );
+      ctx.fillStyle = `rgba(0,212,126,${0.22 + 0.14 * Math.sin(_t * 1.8 + dot.ph)})`;
       ctx.fill();
     }
-    drawHUDText(ctx, `${iraqDots.current.length} TARGETS`, iraqX + 2, mapY + mapH + 12, '#00d47e', 8);
+    // Count badge bottom-left
+    ctx.fillStyle = 'rgba(5,5,8,0.7)';
+    ctx.fillRect(iraqX + 2, mapY + mapH - 20, halfW - 4, 18);
+    drawHUDText(ctx, `${iraqDots.current.length} TARGETS`, iraqX + 6, mapY + mapH - 6, '#00d47e', 7);
 
-    // Gaza map
-    const gazaX = iraqX + iraqW + 10;
-    const gazaW = leftW * 0.48 - 6;
-    ctx.strokeStyle = 'rgba(255, 26, 46, 0.35)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(gazaX, mapY, gazaW, mapH);
+    // ── Gaza panel ──
+    ctx.strokeStyle = 'rgba(255,26,46,0.32)';
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(gazaX, mapY, halfW, mapH);
 
-    drawHUDText(ctx, `GAZA`, gazaX + 4, mapY - 10, '#536878', 7);
-    drawHUDText(ctx, `${GAZA_AREA_KM2} km²`, gazaX + 4, mapY - 2, '#2a3a4a', 6);
-
-    // Gaza dot density heat — gradient overlay
-    if (gazaDots.current.length > 400) {
-      const grd = ctx.createRadialGradient(gazaX + gazaW / 2, mapY + mapH * 0.6, 5, gazaX + gazaW / 2, mapY + mapH / 2, gazaW * 0.7);
-      grd.addColorStop(0, 'rgba(255,26,46,0.12)');
+    // Heat overlay grows with target density
+    if (gazaDots.current.length > 150) {
+      const density = Math.min(gazaDots.current.length / 1850, 1);
+      const grd = ctx.createRadialGradient(
+        gazaX + halfW * 0.5, mapY + mapH * 0.55, 4,
+        gazaX + halfW * 0.5, mapY + mapH * 0.5,  halfW * 0.65
+      );
+      grd.addColorStop(0, `rgba(255,26,46,${0.18 * density})`);
       grd.addColorStop(1, 'rgba(255,26,46,0)');
       ctx.fillStyle = grd;
-      ctx.fillRect(gazaX, mapY, gazaW, mapH);
+      ctx.fillRect(gazaX, mapY, halfW, mapH);
     }
+
+    // Label INSIDE box
+    ctx.fillStyle = 'rgba(5,5,8,0.72)';
+    ctx.fillRect(gazaX + 2, mapY + 2, halfW - 4, 22);
+    drawHUDText(ctx, 'GAZA',     gazaX + 6, mapY + 11, '#ff1a2e', 7);
+    drawHUDText(ctx, '365 km²',  gazaX + 6, mapY + 20, '#4a1a1a', 6);
 
     for (const dot of gazaDots.current) {
-      const dx = gazaX + dot.x * gazaW;
-      const dy = mapY + dot.y * mapH;
-      const a = 0.15 + 0.12 * Math.sin(t * 1.4 + dot.phase);
       ctx.beginPath();
-      ctx.arc(dx, dy, dot.radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 26, 46, ${a})`;
+      ctx.arc(
+        gazaX + 4 + dot.x * (halfW - 8),
+        mapY  + 4 + dot.y * (mapH  - 8),
+        dot.r, 0, Math.PI * 2
+      );
+      ctx.fillStyle = `rgba(255,26,46,${0.14 + 0.11 * Math.sin(_t * 1.4 + dot.ph)})`;
       ctx.fill();
     }
-    drawHUDText(ctx, `${gazaDots.current.length * 20} PROFILES`, gazaX + 2, mapY + mapH + 12, '#ff1a2e', 8);
+    // Count badge bottom-left
+    ctx.fillStyle = 'rgba(5,5,8,0.7)';
+    ctx.fillRect(gazaX + 2, mapY + mapH - 20, halfW - 4, 18);
+    const gazaTargetCount = gazaDots.current.length * 20;
+    drawHUDText(ctx, `${gazaTargetCount.toLocaleString()} TARGETS`, gazaX + 6, mapY + mapH - 6, '#ff1a2e', 7);
 
-    // Scale comparison label
-    const scaleRatio = (IRAQ_AREA_KM2 / GAZA_AREA_KM2).toFixed(0);
-    drawHUDText(ctx, `IRAQ IS ${scaleRatio}× LARGER THAN GAZA`, iraqX, mapY + mapH + 26, '#536878', 7);
+    // Density comparison line
+    const mapBotY = mapY + mapH + 10;
+    const iraqDensity = iraqDots.current.length / 438317 * 1000;
+    const gazaDensity = gazaDots.current.length * 20 / 365;
+    drawHUDText(ctx, `DENSITY — IRAQ: ${iraqDensity.toFixed(3)}/km²  ·  GAZA: ${gazaDensity.toFixed(1)}/km²`, 14, mapBotY, '#2a3a4a', 6.5);
 
-    // Density saturation warning
-    if (gazaDots.current.length > 900) {
-      const blink = Math.sin(t * 2.5) > 0;
-      if (blink) drawHUDText(ctx, '⚠ DENSITY SATURATION — LAVENDER TARGET THRESHOLD EXCEEDED', iraqX, mapY + mapH + 40, '#ff1a2e', 7);
+    if (gazaDensity > 5) {
+      const blink = Math.sin(_t * 3) > 0;
+      if (blink) drawHUDText(ctx, '⚠ SATURATION', gazaX + halfW - 60, mapY + mapH + 10, '#ff1a2e', 6.5);
     }
 
-    // ─── LEFT BOTTOM: Timeline ────────────────────────────────────────
-    const tlY = mapY + mapH + 56;
-    drawHUDText(ctx, `${SIM_OPERATIONAL_DAYS}-DAY OPERATIONAL WINDOW`, 14, tlY, '#536878', 7);
-    drawProgressBar(ctx, 14, tlY + 8, leftW - 28, 7, dayElapsed / SIM_OPERATIONAL_DAYS, '#ff1a2e');
+    // ── KEY STATS PANEL (below maps, above HTML timeline) ─────────────
+    const statsY = mapBotY + 14;
+    // Subtle background
+    ctx.fillStyle = 'rgba(8,12,18,0.55)';
+    ctx.fillRect(14, statsY, leftW - 28, 82);
+    ctx.strokeStyle = 'rgba(26,37,53,0.4)';
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(14, statsY, leftW - 28, 82);
 
-    // Progress tick marks at 7-day intervals
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 1;
-    for (let d = 7; d < SIM_OPERATIONAL_DAYS; d += 7) {
-      const tx = 14 + (leftW - 28) * (d / SIM_OPERATIONAL_DAYS);
-      ctx.beginPath(); ctx.moveTo(tx, tlY + 8); ctx.lineTo(tx, tlY + 15); ctx.stroke();
-      drawHUDText(ctx, `${d}`, tx - 4, tlY + 24, '#2a3a4a', 6);
-    }
+    const colW2 = (leftW - 28) / 2;
 
-    drawHUDText(ctx, `DAY ${dayElapsed.toFixed(1)} / ${SIM_OPERATIONAL_DAYS}`, 14, tlY + 32, '#ffaa00', 8);
+    // Row 1
+    const r1y = statsY + 14;
+    drawHUDText(ctx, 'AVG REVIEW TIME',       14 + 6,        r1y,      '#536878', 6);
+    drawHUDText(ctx, `${REVIEW_SECONDS}s`,    14 + 6,        r1y + 13, '#ff1a2e', 11);
+    drawHUDText(ctx, 'per target  (Lavender)', 14 + 6,       r1y + 23, '#2a3a4a', 6);
 
-    // Velocity metric
-    const velocity = dayElapsed > 0.5 ? Math.round(targetsExpected / dayElapsed) : 0;
-    drawHUDText(ctx, `${velocity} TARGETS/DAY  (LAVENDER ACTUAL: ~176/DAY)`, 14, tlY + 44, '#536878', 7);
+    drawHUDText(ctx, 'CUMULATIVE REVIEW',     14 + colW2 + 6, r1y,      '#536878', 6);
+    const rLabel = targetsGenerated > 0 ? `${reviewHours}h ${reviewMins}m` : '0h 0m';
+    drawHUDText(ctx, rLabel,                  14 + colW2 + 6, r1y + 13, '#ffaa00', 11);
+    drawHUDText(ctx, 'total officer time',    14 + colW2 + 6, r1y + 23, '#2a3a4a', 6);
 
-    // ─────────────────────────────────────────────────────────────────
-    // FUNNEL — POPULATION INGESTION PIPELINE
-    // ─────────────────────────────────────────────────────────────────
-    const funnelX = leftW + 14;
-    const funnelW = w * 0.38;
-    const funnelCX = funnelX + funnelW / 2;
+    // Row 2
+    const r2y = statsY + 50;
+    drawHUDText(ctx, 'EST. CIVILIAN ERROR',   14 + 6,         r2y,      '#536878', 6);
+    drawHUDText(ctx, `${errLow}–${errHigh}`,  14 + 6,         r2y + 13, '#ff6600', 11);
+    drawHUDText(ctx, `wrong target (10–17%)`, 14 + 6,         r2y + 23, '#2a3a4a', 6);
 
-    drawHUDText(ctx, 'POPULATION INGESTION FUNNEL', funnelX, panelY + 13, '#0096ff', 9);
-    drawHUDText(ctx, `TOTAL DATABASE: ${GAZA_POPULATION.toLocaleString()} PROFILES  ·  SOURCE: +972 MAGAZINE / UN OCHA`, funnelX, panelY + 26, '#2a3a4a', 7);
+    drawHUDText(ctx, 'ALGORITHMIC RATE',      14 + colW2 + 6, r2y,      '#536878', 6);
+    drawHUDText(ctx, `${ratePerDay}/day`,     14 + colW2 + 6, r2y + 13, '#0096ff', 11);
+    drawHUDText(ctx, 'targets classified',    14 + colW2 + 6, r2y + 23, '#2a3a4a', 6);
 
-    const funnelTop = panelY + 40;
-    const funnelBot = h - 90;
-    const funnelHeight = funnelBot - funnelTop;
-    const funnelTopW = funnelW * 0.88;
-    const funnelBotW = funnelW * 0.10;
+    // ──────────────────────────────────────────────────────────────────────
+    // ② POPULATION INGESTION FUNNEL (right 40%)
+    // ──────────────────────────────────────────────────────────────────────
+    const funnelX   = leftW + 12;
+    const funnelW   = w * 0.39;
+    const funnelCX  = funnelX + funnelW / 2;
 
-    // Stage breakpoints along the funnel
-    const stagePcts = [0, 0.2, 0.42, 0.65, 0.85, 1.0];
+    drawHUDText(ctx, 'POPULATION INGESTION FUNNEL', funnelX, panelY + 12, '#0096ff', 9);
+    drawHUDText(ctx,
+      `TOTAL DATABASE: ${GAZA_POPULATION.toLocaleString()} PROFILES  ·  LAVENDER AI SYSTEM, GAZA 2023–24`,
+      funnelX, panelY + 25, '#2a3a4a', 7
+    );
 
-    // Funnel fill gradient (left side)
-    const funnelGradL = ctx.createLinearGradient(0, funnelTop, 0, funnelBot);
-    funnelGradL.addColorStop(0, 'rgba(0,150,255,0.05)');
-    funnelGradL.addColorStop(0.4, 'rgba(255,170,0,0.08)');
-    funnelGradL.addColorStop(0.8, 'rgba(255,80,0,0.12)');
-    funnelGradL.addColorStop(1, 'rgba(255,26,46,0.18)');
+    const fTop  = panelY + 36;
+    const fBot  = h - 90;
+    const fH    = fBot - fTop;
+    const fTopW = funnelW * 0.90;
+    const fBotW = funnelW * 0.09;
 
-    // Build funnel path (left wall + right wall + bottom)
+    // Stage Y breakpoints (proportional, refined for visual clarity)
+    const sBreaks = [0, 0.18, 0.40, 0.63, 0.84, 1.0];
+
+    // Gradient fill
+    const fg = ctx.createLinearGradient(0, fTop, 0, fBot);
+    fg.addColorStop(0,    'rgba(0,150,255,0.04)');
+    fg.addColorStop(0.35, 'rgba(255,170,0,0.08)');
+    fg.addColorStop(0.72, 'rgba(255,80,0,0.12)');
+    fg.addColorStop(1,    'rgba(255,26,46,0.20)');
+
     ctx.beginPath();
-    ctx.moveTo(funnelCX - funnelTopW / 2, funnelTop);
-    ctx.lineTo(funnelCX - funnelBotW / 2, funnelBot);
-    ctx.lineTo(funnelCX + funnelBotW / 2, funnelBot);
-    ctx.lineTo(funnelCX + funnelTopW / 2, funnelTop);
+    ctx.moveTo(funnelCX - fTopW / 2, fTop);
+    ctx.lineTo(funnelCX - fBotW / 2, fBot);
+    ctx.lineTo(funnelCX + fBotW / 2, fBot);
+    ctx.lineTo(funnelCX + fTopW / 2, fTop);
     ctx.closePath();
-    ctx.fillStyle = funnelGradL;
+    ctx.fillStyle = fg;
     ctx.fill();
 
-    // Stage dividers + labels inside funnel
+    // Stage bands + labels
     for (let si = 0; si < FUNNEL_STAGES.length; si++) {
-      const stage = FUNNEL_STAGES[si];
-      const pctY = stagePcts[si];
-      const pctY2 = stagePcts[si + 1];
-      const midPct = (pctY + pctY2) / 2;
+      const stage  = FUNNEL_STAGES[si];
+      const yPct   = sBreaks[si];
+      const midPct = (sBreaks[si] + sBreaks[si + 1]) / 2;
 
-      // Stage boundary line
-      const lineY = funnelTop + funnelHeight * pctY;
-      const lineW = funnelTopW + (funnelBotW - funnelTopW) * pctY;
-      ctx.strokeStyle = stage.color.replace('0.7', '0.3').replace('0.9', '0.3');
-      ctx.lineWidth = 0.8;
-      ctx.setLineDash([4, 4]);
+      // Dashed divider
+      const lineY  = fTop + fH * yPct;
+      const lineHW = (fTopW * (1 - yPct) + fBotW * yPct) / 2;
+      ctx.strokeStyle = `${stage.hex}33`;
+      ctx.lineWidth   = 0.7;
+      ctx.setLineDash([3, 4]);
       ctx.beginPath();
-      ctx.moveTo(funnelCX - lineW / 2, lineY);
-      ctx.lineTo(funnelCX + lineW / 2, lineY);
+      ctx.moveTo(funnelCX - lineHW, lineY);
+      ctx.lineTo(funnelCX + lineHW, lineY);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Label on right side of funnel
-      const midY = funnelTop + funnelHeight * midPct;
-      const midW = funnelTopW + (funnelBotW - funnelTopW) * midPct;
-      const labelX = funnelCX + midW / 2 + 8;
-      ctx.font = `bold 7px "JetBrains Mono", monospace`;
-      ctx.fillStyle = stage.color;
-      ctx.fillText(stage.label, labelX, midY - 4);
-      ctx.font = `6px "JetBrains Mono", monospace`;
-      ctx.fillStyle = 'rgba(150,170,190,0.6)';
-      ctx.fillText(stage.sublabel, labelX, midY + 6);
+      // Right-side label
+      const midY   = fTop + fH * midPct;
+      const midHW  = (fTopW * (1 - midPct) + fBotW * midPct) / 2;
+      const lblX   = funnelCX + midHW + 6;
+      ctx.font      = `bold 7px "JetBrains Mono", monospace`;
+      ctx.fillStyle = stage.hex;
+      ctx.fillText(stage.label, lblX, midY - 2);
+      ctx.font      = `6px "JetBrains Mono", monospace`;
+      ctx.fillStyle = 'rgba(140,160,180,0.5)';
+      ctx.fillText(stage.sub, lblX, midY + 7);
 
-      // Animated highlight bracket on left
-      if (si < 4) {
-        const animated = Math.sin(t * 1.5 + si * 0.8) > 0.2;
-        if (animated) {
-          const lx = funnelCX - midW / 2 - 6;
-          ctx.strokeStyle = stage.color;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(lx, midY - 8);
-          ctx.lineTo(lx - 4, midY);
-          ctx.lineTo(lx, midY + 8);
-          ctx.stroke();
-        }
+      // Animated left bracket
+      if (si < 4 && Math.sin(_t * 1.8 + si * 0.9) > 0.15) {
+        const lbX = funnelCX - midHW - 4;
+        ctx.strokeStyle = stage.hex;
+        ctx.lineWidth   = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(lbX, midY - 7); ctx.lineTo(lbX - 3, midY); ctx.lineTo(lbX, midY + 7);
+        ctx.stroke();
       }
     }
 
-    // Funnel outline (on top of fill)
-    const outlineGrad = ctx.createLinearGradient(0, funnelTop, 0, funnelBot);
-    outlineGrad.addColorStop(0, 'rgba(0,150,255,0.5)');
-    outlineGrad.addColorStop(0.6, 'rgba(255,100,0,0.5)');
-    outlineGrad.addColorStop(1, 'rgba(255,26,46,0.8)');
-    ctx.strokeStyle = outlineGrad;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.moveTo(funnelCX - funnelTopW / 2, funnelTop);
-    ctx.lineTo(funnelCX - funnelBotW / 2, funnelBot);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(funnelCX + funnelTopW / 2, funnelTop);
-    ctx.lineTo(funnelCX + funnelBotW / 2, funnelBot);
-    ctx.stroke();
+    // Funnel outline — gradient from blue → red
+    const og = ctx.createLinearGradient(0, fTop, 0, fBot);
+    og.addColorStop(0,   'rgba(0,150,255,0.5)');
+    og.addColorStop(0.5, 'rgba(255,100,0,0.5)');
+    og.addColorStop(1,   'rgba(255,26,46,0.85)');
+    ctx.strokeStyle = og;
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath(); ctx.moveTo(funnelCX - fTopW/2, fTop); ctx.lineTo(funnelCX - fBotW/2, fBot); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(funnelCX + fTopW/2, fTop); ctx.lineTo(funnelCX + fBotW/2, fBot); ctx.stroke();
 
-    // Output neck glow
-    const outGlow = Math.abs(Math.sin(t * 2));
-    ctx.strokeStyle = `rgba(255,26,46,${0.4 + outGlow * 0.4})`;
-    ctx.lineWidth = 2 + outGlow;
-    ctx.beginPath();
-    ctx.moveTo(funnelCX - funnelBotW / 2, funnelBot);
-    ctx.lineTo(funnelCX + funnelBotW / 2, funnelBot);
-    ctx.stroke();
+    // Neck pulsing glow
+    const ng = Math.abs(Math.sin(_t * 2.4));
+    ctx.strokeStyle = `rgba(255,26,46,${0.5 + ng * 0.45})`;
+    ctx.lineWidth   = 1.5 + ng * 1.5;
+    ctx.beginPath(); ctx.moveTo(funnelCX - fBotW/2, fBot); ctx.lineTo(funnelCX + fBotW/2, fBot); ctx.stroke();
 
     // ── PARTICLES ──────────────────────────────────────────────────────
-    const MAX_PARTICLES = 600;
-    // Spawn particles scaled to sim speed
-    const spawnRate = Math.ceil(speedRef.current * 2);
-    if (funnelParticles.current.length < MAX_PARTICLES) {
-      for (let i = 0; i < spawnRate; i++) {
-        funnelParticles.current.push({
-          x: funnelCX + (Math.random() - 0.5) * funnelTopW * 0.88,
-          y: funnelTop - 8 - Math.random() * 20,
-          vy: (30 + Math.random() * 70) * speedRef.current,
-          size: 1.2 + Math.random() * 1.8,
-          alpha: 0.45 + Math.random() * 0.35,
+    const MAX_P    = 700;
+    const spawnR   = Math.max(1, Math.ceil(speedRef.current * 2));
+    if (particles.current.length < MAX_P) {
+      for (let i = 0; i < spawnR; i++) {
+        particles.current.push({
+          x:     funnelCX + (Math.random() - 0.5) * fTopW * 0.86,
+          y:     fTop - 8 - Math.random() * 24,
+          vy:    (28 + Math.random() * 62) * Math.max(speedRef.current, 0.5),
+          sz:    1.2 + Math.random() * 1.8,
+          al:    0.45 + Math.random() * 0.35,
           stage: 0,
         });
       }
     }
 
-    for (let i = funnelParticles.current.length - 1; i >= 0; i--) {
-      const p = funnelParticles.current[i];
-      p.y += p.vy * scaledDt;
+    const scaledDt = clampedDt * speedRef.current;
+    const pColors  = ['rgba(180,210,240,', 'rgba(100,180,255,', 'rgba(255,170,0,', 'rgba(255,80,0,', 'rgba(255,26,46,'];
 
-      const progress = (p.y - funnelTop) / funnelHeight;
-      if (progress >= 0 && progress <= 1) {
-        // Constrain to funnel walls
-        const maxHalfW = (funnelTopW + (funnelBotW - funnelTopW) * progress) / 2;
-        const distFromCenter = p.x - funnelCX;
-        if (Math.abs(distFromCenter) > maxHalfW * 0.92) {
-          p.x = funnelCX + Math.sign(distFromCenter) * maxHalfW * 0.85;
+    for (let i = particles.current.length - 1; i >= 0; i--) {
+      const p    = particles.current[i];
+      p.y       += p.vy * scaledDt;
+      const prog = (p.y - fTop) / fH;
+
+      if (prog >= 0 && prog <= 1) {
+        // Hard-clamp to funnel walls
+        const maxHW = (fTopW * (1 - prog) + fBotW * prog) / 2;
+        const dist  = p.x - funnelCX;
+        if (Math.abs(dist) > maxHW * 0.88) {
+          p.x = funnelCX + Math.sign(dist) * maxHW * 0.84;
         }
-        // Nudge toward center as falling
-        p.x += (funnelCX - p.x) * 0.008;
-
-        // Stage progression
-        p.stage = Math.floor(progress / 0.22);
+        p.x    += (funnelCX - p.x) * 0.005;
+        p.stage = Math.min(Math.floor(prog / 0.21), 4);
       }
 
-      // Recycle
-      if (p.y > funnelBot + 15) {
-        p.y = funnelTop - 8 - Math.random() * 20;
-        p.x = funnelCX + (Math.random() - 0.5) * funnelTopW * 0.88;
+      if (p.y > fBot + 14) {
+        p.y = fTop - 8 - Math.random() * 24;
+        p.x = funnelCX + (Math.random() - 0.5) * fTopW * 0.86;
+        p.vy    = (28 + Math.random() * 62) * Math.max(speedRef.current, 0.5);
         p.stage = 0;
-        p.vy = (30 + Math.random() * 70) * Math.max(speedRef.current, 0.5);
       }
-
-      // Color by stage
-      const stageColors = [
-        `rgba(180,210,240,${p.alpha * 0.55})`,
-        `rgba(100,180,255,${p.alpha * 0.7})`,
-        `rgba(255,170,0,${p.alpha * 0.8})`,
-        `rgba(255,80,0,${p.alpha * 0.9})`,
-        `rgba(255,26,46,${p.alpha})`,
-      ];
-      const col = stageColors[Math.min(p.stage, 4)];
 
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size + (p.stage > 2 ? 0.5 : 0), 0, Math.PI * 2);
-      ctx.fillStyle = col;
+      ctx.arc(p.x, p.y, p.sz + (p.stage > 2 ? 0.5 : 0), 0, Math.PI * 2);
+      ctx.fillStyle = `${pColors[p.stage]}${p.al})`;
       ctx.fill();
     }
 
-    // ── FUNNEL OUTPUT COUNTER ──────────────────────────────────────────
-    const outY = funnelBot + 16;
-    drawHUDText(ctx, 'TARGETS CLASSIFIED', funnelCX - 70, outY, '#536878', 7);
-    ctx.font = 'bold 26px "JetBrains Mono", monospace';
+    // ── OUTPUT COUNTER ──────────────────────────────────────────────────
+    const outY = fBot + 14;
+    drawHUDText(ctx, 'TARGETS CLASSIFIED', funnelCX - 66, outY, '#536878', 7);
+    ctx.font      = `bold 28px "JetBrains Mono", monospace`;
     ctx.fillStyle = '#ff1a2e';
-    ctx.fillText(targetsExpected.toLocaleString().padStart(6, ' '), funnelCX - 78, outY + 22);
-    drawHUDText(ctx, `OF ${LAVENDER_TARGETS.toLocaleString()} TOTAL  ·  176 / DAY ACTUAL RATE`, funnelCX - 78, outY + 36, '#536878', 7);
+    ctx.fillText(targetsGenerated.toLocaleString().padStart(6, ' '), funnelCX - 80, outY + 24);
+    drawHUDText(ctx,
+      `OF ${LAVENDER_TARGETS.toLocaleString()} TOTAL  ·  ${Number(ratePerDay).toFixed(0)}/DAY  vs ACTUAL 176/DAY`,
+      funnelCX - 80, outY + 38, '#536878', 7
+    );
 
-    // ─────────────────────────────────────────────────────────────────
-    // BOTTOM HUD BAR
-    // ─────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────
+    // ③ BOTTOM HUD BAR
+    // ──────────────────────────────────────────────────────────────────────
     const hudY = h - 28;
-    ctx.fillStyle = 'rgba(5, 5, 8, 0.92)';
+    ctx.fillStyle   = 'rgba(4,4,8,0.95)';
     ctx.fillRect(0, hudY - 8, w, 36);
-    ctx.strokeStyle = 'rgba(26, 37, 53, 0.6)';
-    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = 'rgba(26,37,53,0.5)';
+    ctx.lineWidth   = 0.5;
     ctx.beginPath(); ctx.moveTo(0, hudY - 8); ctx.lineTo(w, hudY - 8); ctx.stroke();
 
-    drawHUDText(ctx, `PROFILES INGESTED: ${profilesIngested.toLocaleString()}`, 14, hudY + 7, '#0096ff', 9);
-    drawHUDText(ctx, `TARGETS GENERATED: ${targetsExpected.toLocaleString()}`, w * 0.32, hudY + 7, '#ff1a2e', 9);
-    drawHUDText(ctx, `OPERATIONAL DAY: ${dayElapsed.toFixed(1)} / ${SIM_OPERATIONAL_DAYS}`, w * 0.62, hudY + 7, '#ffaa00', 9);
+    // All four counters derived from the SAME `day` value — guaranteed in sync
+    drawHUDText(ctx, `PROFILES INGESTED: ${profilesIngested.toLocaleString()}`,  14,       hudY + 8, '#0096ff', 9);
+    drawHUDText(ctx, `TARGETS GENERATED: ${targetsGenerated.toLocaleString()}`,  w * 0.30, hudY + 8, '#ff1a2e', 9);
+    drawHUDText(ctx, `DAY: ${day.toFixed(2)} / ${SIM_DAYS}`,                     w * 0.58, hudY + 8, '#ffaa00', 9);
+    drawHUDText(ctx, `HUMAN REVIEW: ${reviewHours}h ${reviewMins}m total`,       w * 0.76, hudY + 8, '#536878', 8);
   }, []);
 
-  // ── RENDER: canvas + HTML overlays ──────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────────────────
+  // RENDER
+  // ────────────────────────────────────────────────────────────────────────────
+  const dayPct = Math.min(displayDay / SIM_DAYS, 1);
+
   return (
-    <div className="relative w-full h-full flex flex-col">
-      {/* Canvas layer */}
+    <div ref={containerRef} className="relative w-full h-full">
+
+      {/* ── CANVAS (full area) ─────────────────────────────────────────── */}
       <div className="absolute inset-0">
         <ModuleCanvas
           title="HIGH-VOLUME TARGET GENERATION PIPELINE"
-          subtitle="Automated mass surveillance data → target extraction at machine pace  ·  Based on Lavender AI system (Gaza, 2023–2024)"
+          subtitle="Automated mass surveillance → AI target extraction at machine pace  ·  Based on Lavender AI system (Gaza, 2023–2024)"
           moduleId="MODULE 1 // TARGET PIPELINE"
           draw={draw}
         />
       </div>
 
-      {/* ── TARGET LIST OVERLAY (right 22%) ──────────────────────────── */}
+      {/* ── INTERACTIVE TIMELINE (HTML overlay, positioned below density maps) */}
       <div
-        className="absolute font-mono"
-        style={{ top: 62, right: 8, width: '21%', bottom: 36, zIndex: 10 }}
+        className="absolute font-mono pointer-events-auto"
+        style={{ left: 14, width: 'calc(37% - 28px)', top: mapEndPx + 100, zIndex: 10 }}
       >
-        <div className="h-full flex flex-col border border-terminal-border/40 rounded bg-[#050508]/80 backdrop-blur-sm overflow-hidden">
-          {/* Header */}
-          <div className="px-2 py-1.5 border-b border-terminal-border/40 flex justify-between items-center shrink-0">
-            <span className="text-[8px] text-terminal-blue font-bold tracking-wider">TARGET LOG</span>
-            <span className="text-[7px] text-terminal-text-faint">{targetList.length} ENTRIES</span>
+        <div className="space-y-2">
+          {/* Label row */}
+          <div className="flex justify-between text-[6.5px] font-bold">
+            <span className="text-terminal-blue tracking-wider">{SIM_DAYS}-DAY OPERATIONAL WINDOW</span>
+            <span className="text-terminal-amber tabular-nums">DAY {displayDay.toFixed(2)}</span>
           </div>
-          {/* Scrolling list */}
-          <div ref={targetListRef} className="flex-1 overflow-y-auto space-y-px p-1">
-            {targetList.length === 0 ? (
-              <div className="text-[7px] text-terminal-text-faint text-center mt-4 opacity-50">AWAITING DATA...</div>
-            ) : (
-              targetList.map((entry, i) => (
-                <div
-                  key={i}
-                  className={`flex justify-between items-center px-1.5 py-0.5 rounded text-[7px] ${
-                    entry.status === 'CLASSIFIED'
-                      ? 'bg-terminal-red/8 border-l-2 border-terminal-red/60'
-                      : entry.status === 'FLAGGED'
-                      ? 'bg-terminal-amber/8 border-l-2 border-terminal-amber/50'
-                      : 'border-l-2 border-terminal-text-faint/20'
-                  }`}
-                >
-                  <span className="text-terminal-text-faint font-mono">{entry.id}</span>
-                  <span className={
-                    entry.status === 'CLASSIFIED' ? 'text-terminal-red font-bold' :
-                    entry.status === 'FLAGGED' ? 'text-terminal-amber font-bold' :
-                    'text-terminal-text-faint'
-                  }>
-                    {entry.conf}%
-                  </span>
-                </div>
-              ))
-            )}
+
+          {/* Scrub bar */}
+          <div
+            className="relative h-3 rounded cursor-pointer select-none group"
+            style={{ background: 'rgba(8,12,18,0.85)', border: '1px solid rgba(26,37,53,0.6)' }}
+            onClick={applyScrub}
+            onMouseMove={(e) => { if (isDragging.current) applyScrub(e); }}
+            onMouseDown={(e) => { isDragging.current = true; applyScrub(e); }}
+            onMouseUp={() => { isDragging.current = false; }}
+            onMouseLeave={() => { isDragging.current = false; }}
+          >
+            {/* Progress fill */}
+            <div
+              className="absolute top-0 left-0 h-full rounded-sm"
+              style={{
+                width: `${dayPct * 100}%`,
+                background: 'linear-gradient(to right, #0096ff, #ffaa00, #ff1a2e)',
+                transition: 'none',
+              }}
+            />
+            {/* Week tick marks */}
+            {[7, 14, 21, 28].map(d => (
+              <div
+                key={d}
+                className="absolute top-0 h-full w-px"
+                style={{ left: `${(d / SIM_DAYS) * 100}%`, background: 'rgba(255,255,255,0.12)' }}
+              />
+            ))}
+            {/* Thumb */}
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border shadow-lg"
+              style={{
+                left: `calc(${dayPct * 100}% - 6px)`,
+                background: '#ccd6e0',
+                borderColor: 'rgba(0,150,255,0.6)',
+                boxShadow: '0 0 6px rgba(0,150,255,0.4)',
+                transition: 'none',
+              }}
+            />
           </div>
-          {/* Footer */}
-          <div className="px-2 py-1 border-t border-terminal-border/40 shrink-0">
-            <div className="text-[6.5px] text-terminal-red/70 leading-tight">
-              ~20s avg officer review (Lavender data)
-            </div>
+
+          {/* Tick labels */}
+          <div className="relative h-3 text-[5.5px]" style={{ color: '#2a3a4a' }}>
+            {[0, 7, 14, 21, 28, 35].map(d => (
+              <span key={d} className="absolute -translate-x-1/2" style={{ left: `${(d / SIM_DAYS) * 100}%` }}>
+                D{d}
+              </span>
+            ))}
+          </div>
+
+          {/* Jump buttons */}
+          <div className="flex items-center gap-1">
+            <span className="text-[6px] text-terminal-text-faint shrink-0">JUMP:</span>
+            {[0, 7, 14, 21, 28, 35].map(d => (
+              <button
+                key={d}
+                onClick={() => jumpTo(d)}
+                className="px-1.5 py-0.5 rounded text-[6px] font-bold border transition-all hover:border-terminal-blue hover:text-terminal-blue"
+                style={{ borderColor: 'rgba(26,37,53,0.6)', color: '#536878' }}
+              >
+                D{d}
+              </button>
+            ))}
+            <button
+              onClick={() => jumpTo(SIM_DAYS)}
+              className="ml-auto px-1.5 py-0.5 rounded text-[6px] font-bold border border-terminal-red/40 text-terminal-red/70 hover:border-terminal-red hover:text-terminal-red transition-all"
+            >
+              END
+            </button>
           </div>
         </div>
       </div>
 
-      {/* ── SPEED CONTROLS OVERLAY (bottom-left) ─────────────────────── */}
+      {/* ── SPEED CONTROLS ─────────────────────────────────────────────── */}
       <div
-        className="absolute font-mono flex items-center gap-1.5"
+        className="absolute font-mono flex items-center gap-1.5 pointer-events-auto"
         style={{ bottom: 38, left: 14, zIndex: 10 }}
       >
-        <span className="text-[7px] text-terminal-text-faint tracking-wider">SIM SPEED:</span>
-        {SPEED_OPTIONS.map((s) => (
+        <span className="text-[6.5px] text-terminal-text-faint tracking-wider uppercase">Speed:</span>
+        {SPEED_OPTIONS.map(s => (
           <button
             key={s}
             onClick={() => setSpeed(s)}
             className={`px-1.5 py-0.5 rounded text-[7px] font-bold border transition-all ${
               speed === s
                 ? 'bg-terminal-blue/20 border-terminal-blue text-terminal-blue'
-                : 'border-terminal-border/40 text-terminal-text-faint hover:border-terminal-text-faint hover:text-terminal-text'
+                : 'border-terminal-border/40 text-terminal-text-faint hover:border-terminal-text-dim hover:text-terminal-text'
             }`}
           >
             {s}×
@@ -492,19 +607,82 @@ export function TargetPipeline() {
         ))}
       </div>
 
-      {/* ── SOURCE CITATIONS (bottom-right) ──────────────────────────── */}
+      {/* ── TARGET LOG (right 21%) ─────────────────────────────────────── */}
       <div
-        className="absolute font-mono text-right"
+        className="absolute font-mono pointer-events-auto"
+        style={{ top: 62, right: 8, width: '21%', bottom: 36, zIndex: 10 }}
+      >
+        <div className="h-full flex flex-col rounded overflow-hidden"
+          style={{ background: 'rgba(5,5,8,0.82)', border: '1px solid rgba(26,37,53,0.45)', backdropFilter: 'blur(8px)' }}>
+
+          {/* Header */}
+          <div className="px-2 py-1.5 flex justify-between items-center shrink-0"
+            style={{ borderBottom: '1px solid rgba(26,37,53,0.4)' }}>
+            <span className="text-[8px] text-terminal-blue font-bold tracking-wider">TARGET LOG</span>
+            <span className="text-[7px] text-terminal-text-faint tabular-nums">{tgtList.length} / {Math.floor(displayDay * TARGETS_PER_DAY).toLocaleString()}</span>
+          </div>
+
+          {/* Entries */}
+          <div ref={listRef} className="flex-1 overflow-y-auto p-1 space-y-px">
+            {tgtList.length === 0 ? (
+              <p className="text-[7px] text-terminal-text-faint/40 text-center mt-4">AWAITING DATA...</p>
+            ) : (
+              tgtList.map((e, i) => (
+                <div
+                  key={i}
+                  className="flex justify-between items-center px-1.5 py-0.5 rounded text-[7px]"
+                  style={{
+                    borderLeft: `2px solid ${e.status === 'CLASSIFIED' ? 'rgba(255,26,46,0.6)' : e.status === 'FLAGGED' ? 'rgba(255,170,0,0.5)' : 'rgba(80,100,120,0.3)'}`,
+                    background: e.status === 'CLASSIFIED' ? 'rgba(255,26,46,0.05)' : e.status === 'FLAGGED' ? 'rgba(255,170,0,0.04)' : 'transparent',
+                  }}
+                >
+                  <span className="text-terminal-text-faint tabular-nums">{e.id}</span>
+                  <span
+                    className="font-bold tabular-nums"
+                    style={{ color: e.status === 'CLASSIFIED' ? '#ff1a2e' : e.status === 'FLAGGED' ? '#ffaa00' : '#536878' }}
+                  >
+                    {e.conf}%
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Footer note */}
+          <div className="px-2 py-1 shrink-0" style={{ borderTop: '1px solid rgba(26,37,53,0.4)' }}>
+            <p className="text-[6px] leading-tight" style={{ color: 'rgba(255,26,46,0.55)' }}>
+              ~20s avg review (Lavender)
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── SOURCE CITATIONS ───────────────────────────────────────────── */}
+      <div
+        className="absolute text-right pointer-events-auto"
         style={{ bottom: 38, right: 8, zIndex: 10 }}
       >
-        <div className="text-[6px] text-terminal-text-faint/60 space-y-0.5">
-          <a href="https://www.972mag.com/lavender-ai-israeli-army-gaza/" target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-end gap-0.5 hover:text-terminal-blue transition-colors">
-            +972 Magazine — Lavender AI (2024) <ExternalLink className="w-2 h-2" />
+        <div className="space-y-0.5 font-mono text-[6px]" style={{ color: 'rgba(83,104,120,0.55)' }}>
+          <a
+            href="https://www.972mag.com/lavender-ai-israeli-army-gaza/"
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-end gap-0.5 hover:text-terminal-blue transition-colors"
+          >
+            +972 Magazine — Lavender AI (Apr 2024) <ExternalLink className="w-2 h-2" />
           </a>
-          <a href="https://www.unocha.org/occupied-palestinian-territory" target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-end gap-0.5 hover:text-terminal-blue transition-colors">
+          <a
+            href="https://www.unocha.org/occupied-palestinian-territory"
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-end gap-0.5 hover:text-terminal-blue transition-colors"
+          >
             UN OCHA — Gaza Population (2023) <ExternalLink className="w-2 h-2" />
+          </a>
+          <a
+            href="https://www.icrc.org/en/document/icrc-position-autonomous-weapon-systems"
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-end gap-0.5 hover:text-terminal-blue transition-colors"
+          >
+            ICRC — Autonomous Weapons Position (2021) <ExternalLink className="w-2 h-2" />
           </a>
         </div>
       </div>
