@@ -1,85 +1,89 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
-import { ExternalLink, AlertTriangle, CheckCircle, XCircle, ChevronDown, ChevronRight } from 'lucide-react';
-import { drawHUDText, drawPersonIcon } from './ModuleCanvas';
+import { useState, useEffect, useRef } from 'react';
+import {
+  ExternalLink, AlertTriangle, ChevronDown, ChevronRight,
+  XCircle, CheckCircle, Scale, Shield, Zap, Eye, BookOpen,
+} from 'lucide-react';
 
-// ── Verified & corrected data ──────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// M6: IHL COMPLIANCE & ACCOUNTABILITY
+// Sources: ICRC, +972 Magazine, HRW, Amnesty International, UN CCW GGE
+// ─────────────────────────────────────────────────────────────────────────────
 
-interface IHLPrinciple {
-  id: string; name: string; article: string;
-  treaty: string; treatyUrl: string;
-  description: string; lawsConflict: string;
-  caseNote: string; caseUrl: string;
-}
-
-interface RubberStampCase {
-  system: string; country: string; reviewTime: string;
-  targetsPerDay: number; source: string; sourceUrl: string; detail: string;
-}
-
-interface KeyDoc {
-  title: string; body: string; url: string; tag: string; tagColor: string;
-}
-
-const IHL_PRINCIPLES: IHLPrinciple[] = [
+const IHL_PRINCIPLES = [
   {
     id: 'distinction',
-    name: 'Principle of Distinction',
-    article: 'API Art. 48, 51–52 · GCIV Art. 50',
+    name: 'Distinction',
+    article: 'API Art. 48, 51–52  ·  GCIV Art. 50',
     treaty: 'ICRC Customary IHL Rule 1 — Distinction Between Civilians and Combatants',
     treatyUrl: 'https://ihl-databases.icrc.org/en/customary-ihl/v1/rule1',
-    description: 'Parties must at all times distinguish between civilians and combatants. Attacks may only be directed at combatants and military objectives. The civilian population must not be the object of attack.',
-    lawsConflict: "Israel's 'Lavender' AI assigned targeting probability scores to 37,000 Palestinian men based on behavioural patterns — phone associations, WhatsApp group membership, movement data. A 72% confidence score means a 28% chance the target is a civilian. Pattern-of-life association is not individualised assessment.",
+    rule: 'Parties must at all times distinguish between civilians and combatants. Attacks may only be directed at combatants and military objectives. The civilian population must not be the object of attack.',
+    conflict: "Lavender AI assigned targeting probability scores to 37,000 Palestinian men based on behavioural patterns — phone associations, WhatsApp group membership, movement data. A 72% confidence score means a 28% probability the target is a civilian. Pattern-of-life association is not individualised assessment.",
+    system: 'Lavender AI — Gaza 2023–24',
+    conflictKey: '72% confidence · 28% civilian probability · 37,000 batch targets',
     caseNote: '+972 Magazine: "Lavender: The AI machine directing Israel\'s bombing spree in Gaza" (Apr 2024)',
     caseUrl: 'https://www.972mag.com/lavender-ai-israeli-army-gaza/',
+    color: '#ff1a2e',
   },
   {
     id: 'proportionality',
-    name: 'Principle of Proportionality',
+    name: 'Proportionality',
     article: 'API Art. 51(5)(b), 57(2)(a)(iii)',
     treaty: 'ICRC Customary IHL Rule 14 — Proportionality in Attack',
     treatyUrl: 'https://ihl-databases.icrc.org/en/customary-ihl/v1/rule14',
-    description: 'An attack is prohibited if it may be expected to cause incidental civilian casualties excessive in relation to the concrete and direct military advantage anticipated. This assessment must be made individually for each attack.',
-    lawsConflict: "The IDF's 'Where's Daddy?' system targeted individuals at home to maximise civilian co-location. Reporters documented that pre-set kill ratios of up to 20 civilian deaths per low-ranking target were programmed into the approval pipeline. Pre-computed ratios cannot substitute for case-by-case proportionality assessment.",
-    caseNote: 'Amnesty International: "Damning evidence of war crimes as Israeli attacks wipe out entire families" (Oct 2023)',
+    rule: 'An attack is prohibited if it may be expected to cause incidental civilian casualties excessive in relation to the concrete and direct military advantage anticipated. This assessment must be made individually for each attack.',
+    conflict: "The IDF's 'Where's Daddy?' system targeted individuals at home to maximise civilian co-location. IDF pre-programmed kill ratios of up to 20 civilian deaths per low-ranking target into the approval pipeline. Pre-computed aggregate ratios cannot substitute for case-by-case proportionality assessment.",
+    system: "Where's Daddy? / Lavender — Gaza 2023–24",
+    conflictKey: '20 civilian deaths pre-approved per junior target · no per-case review',
+    caseNote: 'Amnesty International: "Damning evidence of war crimes" (Oct 2023)',
     caseUrl: 'https://www.amnesty.org/en/latest/news/2023/10/damning-evidence-of-war-crimes-as-israeli-attacks-wipe-out-entire-families-in-gaza/',
+    color: '#ff6600',
   },
   {
     id: 'precaution',
-    name: 'Principle of Precaution in Attack',
+    name: 'Precaution',
     article: 'API Art. 57',
     treaty: 'ICRC Customary IHL Rule 15 — Precautions in Attack',
     treatyUrl: 'https://ihl-databases.icrc.org/en/customary-ihl/v1/rule15',
-    description: 'Constant care must be taken to spare civilians. All feasible precautions must be taken in the choice of means and methods of attack. Commanders must verify targets and select means to minimise civilian harm.',
-    lawsConflict: "'Habsora' (Gospel) AI generated up to 100 bombing targets per day — far beyond human capacity for genuine verification. Officers spent approximately 20 seconds approving each AI-generated strike on a residential building. This pace is physically incompatible with meaningful precautionary legal review.",
-    caseNote: '+972 Magazine: "A mass assassination factory: Inside Israel\'s calculated bombing of Gaza" (Nov 2023)',
+    rule: 'Constant care must be taken to spare civilians. All feasible precautions must be taken in choice of means and methods. Commanders must verify targets and select means to minimise civilian harm.',
+    conflict: "Habsora (Gospel) AI generated up to 100 bombing targets per day — far beyond human capacity for genuine verification. Officers spent approximately 20 seconds approving each AI-generated strike on a residential building. This pace is physically incompatible with meaningful precautionary legal review.",
+    system: 'Habsora (Gospel) AI — Gaza 2023',
+    conflictKey: '100 targets/day · 20-second approval · impossible verification rate',
+    caseNote: '+972 Magazine: "A mass assassination factory" (Nov 2023)',
     caseUrl: 'https://www.972mag.com/mass-assassination-factory-israel-calculated-bombing-gaza/',
+    color: '#ffaa00',
   },
   {
     id: 'humanity',
-    name: 'Principle of Humanity / Martens Clause',
+    name: 'Humanity & Martens Clause',
     article: 'Hague IV Preamble (1907) · API Art. 1(2)',
     treaty: 'ICRC IHL Treaty Database — Hague Convention IV 1907',
     treatyUrl: 'https://ihl-databases.icrc.org/en/ihl-treaties/hciv-1907',
-    description: 'In cases not covered by treaty, civilians and combatants remain under the protection derived from the principles of humanity and the dictates of public conscience. The Martens Clause applies even in legal grey areas.',
-    lawsConflict: 'No algorithm can exercise mercy, compassion, or conscience. Delegating life-and-death decisions entirely to machines — even in ambiguous situations — violates the fundamental principle that humanity must govern the conduct of war. This is the moral core of the LAWS ban movement.',
-    caseNote: 'ICRC: "Autonomous Weapon Systems: Implications of Increasing Autonomy in the Critical Functions of Weapons" (2016)',
+    rule: 'In cases not covered by treaty, civilians and combatants remain under the protection derived from the principles of humanity and the dictates of public conscience. Applies even in legal grey areas.',
+    conflict: 'No algorithm can exercise mercy, compassion, or conscience. Delegating life-and-death decisions to machines — even in ambiguous situations — violates the principle that humanity must govern the conduct of war. This is the moral core of the LAWS ban movement.',
+    system: 'All LAWS deployments — structural',
+    conflictKey: 'No machine can exercise mercy, compassion, or conscience',
+    caseNote: 'ICRC: "Autonomous Weapon Systems: Implications of Increasing Autonomy" (2016)',
     caseUrl: 'https://www.icrc.org/en/publication/autonomous-weapon-systems-implications-increasing-autonomy-critical-functions-weapons',
+    color: '#818cf8',
   },
   {
     id: 'accountability',
-    name: 'Command Responsibility & Accountability',
+    name: 'Command Responsibility',
     article: 'API Art. 86–87 · Rome Statute Art. 28',
     treaty: 'Additional Protocol I Art. 86 — ICRC Treaty Database',
     treatyUrl: 'https://ihl-databases.icrc.org/en/ihl-treaties/api-1977/article-86',
-    description: 'Commanders are legally responsible for war crimes by subordinates if they knew or should have known, and failed to prevent or punish. IHL requires an identifiable human decision-maker for every use of lethal force.',
-    lawsConflict: "When AI selects and engages targets autonomously, no accountability chain exists. Manufacturers cannot be prosecuted under IHL. No individual commander personally decided. This creates a 'responsibility vacuum' — a fundamental gap in the law for LAWS deployments.",
-    caseNote: 'UN CCW GGE Report 2019: "Applicability of International Humanitarian Law to Autonomous Weapon Systems"',
+    rule: 'Commanders are legally responsible for war crimes by subordinates if they knew or should have known, and failed to prevent or punish. IHL requires an identifiable human decision-maker for every use of lethal force.',
+    conflict: "When AI selects and engages targets autonomously, no accountability chain exists. Manufacturers cannot be prosecuted under IHL. No individual commander personally decided to fire. This creates a 'responsibility vacuum' — a fundamental gap in the law for LAWS deployments.",
+    system: 'All autonomous targeting systems — structural gap',
+    conflictKey: 'Responsibility vacuum · no legal person accountable for AI decisions',
+    caseNote: 'UN CCW GGE Report 2019: "Applicability of IHL to Autonomous Weapon Systems"',
     caseUrl: 'https://undocs.org/CCW/GGE.1/2019/3',
+    color: '#ec4899',
   },
-];
+] as const;
 
-const RUBBER_STAMP_CASES: RubberStampCase[] = [
+const RUBBER_STAMP_CASES = [
   {
     system: 'Habsora ("Gospel") AI',
     country: 'Israel / IDF — Gaza 2023–24',
@@ -92,7 +96,7 @@ const RUBBER_STAMP_CASES: RubberStampCase[] = [
   {
     system: 'Lavender AI',
     country: 'Israel / IDF — Gaza 2023–24',
-    reviewTime: '< 1 minute — AI treated as fact',
+    reviewTime: '<1 minute — AI treated as fact',
     targetsPerDay: 37000,
     source: '+972 Magazine / Local Call (Apr 2024)',
     sourceUrl: 'https://www.972mag.com/lavender-ai-israeli-army-gaza/',
@@ -107,9 +111,9 @@ const RUBBER_STAMP_CASES: RubberStampCase[] = [
     sourceUrl: 'https://undocs.org/S/2021/229',
     detail: "A 2021 UN Panel of Experts report on Libya documented that KARGU-2 loitering munitions 'hunted down and remotely engaged' retreating soldiers without requiring data connectivity — meaning no human issued the engagement command. If confirmed, this is the first documented case of an autonomous weapons system engaging humans without a human decision.",
   },
-];
+] as const;
 
-const KEY_DOCUMENTS: KeyDoc[] = [
+const KEY_DOCUMENTS = [
   {
     title: 'UN Secretary-General: Joint Appeal on AWS (2023)',
     body: 'UN SG António Guterres called for a legally binding instrument to prohibit LAWS before 2026, warning that "machines with the power and discretion to take lives without human involvement are politically unacceptable, morally repugnant and should be prohibited by international law."',
@@ -117,16 +121,16 @@ const KEY_DOCUMENTS: KeyDoc[] = [
     tag: 'UN STATEMENT', tagColor: '#0096ff',
   },
   {
-    title: '"Meaningful Human Control" — Stop Killer Robots / Article 36 Standard',
+    title: '"Meaningful Human Control" — Article 36 / Stop Killer Robots Standard',
     body: '"Meaningful human control" requires that a person must understand and be able to predict system behaviour, be able to activate/deactivate the weapon, and bear genuine legal and moral responsibility. A 20-second rubber stamp does not meet this standard.',
     url: 'https://www.article36.org/weapons/autonomous-weapons/',
     tag: 'LEGAL STANDARD', tagColor: '#ffaa00',
   },
   {
     title: 'Stop Killer Robots — Campaign Overview',
-    body: 'Coalition of 270+ NGOs in 70+ countries calling for new international law to retain human control over the use of force. Endorsed by the ICRC, UNHCR, and UN Secretary-General.',
-    url: 'https://www.stopkillerrobots.org/',
-    tag: 'ADVOCACY', tagColor: '#ec4899',
+    body: 'Coalition of 270+ NGOs in 70+ countries calling for new international law to retain human control over the use of force. Endorsed by the ICRC, UNHCR, and UN Secretary-General. Sign the petition.',
+    url: 'https://stopkillerrobots.org/take-action/sign-our-petition-now/',
+    tag: 'TAKE ACTION', tagColor: '#ec4899',
   },
   {
     title: 'ICRC Position: New Rules Needed for Autonomous Weapons (2021)',
@@ -136,7 +140,7 @@ const KEY_DOCUMENTS: KeyDoc[] = [
   },
   {
     title: 'UN General Assembly — Historic LAWS Resolution 78/241 (Dec 2023)',
-    body: 'First-ever UN General Assembly resolution specifically on lethal autonomous weapons systems passed with an overwhelming majority of 152 votes in favour. The resolution requests a substantive report from the Secretary-General on the challenges posed by LAWS.',
+    body: 'First-ever UNGA resolution specifically on lethal autonomous weapons systems passed with an overwhelming majority of 152 votes in favour. Requests a substantive report from the Secretary-General on the challenges posed by LAWS.',
     url: 'https://undocs.org/A/RES/78/241',
     tag: 'UN RESOLUTION', tagColor: '#a855f7',
   },
@@ -146,586 +150,484 @@ const KEY_DOCUMENTS: KeyDoc[] = [
     url: 'https://www.hrw.org/report/2016/12/19/making-case/dangers-killer-robots-and-need-preemptive-ban',
     tag: 'HRW LEGAL', tagColor: '#ff6b35',
   },
-];
+  {
+    title: 'UN Convention on Certain Conventional Weapons — LAWS Negotiations',
+    body: 'The CCW Group of Governmental Experts has been negotiating LAWS since 2014. Progress has stalled due to objections from major military powers. This page tracks the ongoing deliberations.',
+    url: 'https://disarmament.unoda.org/the-convention-on-certain-conventional-weapons/',
+    tag: 'UN CCW', tagColor: '#38bdf8',
+  },
+] as const;
 
-// ── Canvas drawing utilities ───────────────────────────────────────────────
+type TabId = 'principles' | 'cases' | 'documents';
 
+// ── Gauge SVG (compliance score) ──────────────────────────────────────────
+function ComplianceGauge() {
+  const R = 56;
+  const stroke = 10;
+  const circ = Math.PI * R; // semi-circle
+  // 0% filled — the gauge shows 0 of 5 principles compliant
+  return (
+    <svg width={140} height={82} viewBox="0 0 140 82" style={{ overflow: 'visible' }}>
+      {/* Glow effect */}
+      <defs>
+        <filter id="red-glow">
+          <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+          <feMerge><feMergeNode in="coloredBlur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+      {/* Track (full semi-circle) */}
+      <path
+        d={`M ${70 - R} 70 A ${R} ${R} 0 0 1 ${70 + R} 70`}
+        fill="none"
+        stroke="rgba(26,37,53,0.6)"
+        strokeWidth={stroke}
+        strokeLinecap="round"
+      />
+      {/* Filled portion — 0% (nothing filled, but we show a small red dot at start) */}
+      <circle cx={70 - R} cy={70} r={stroke / 2} fill="#ff1a2e" filter="url(#red-glow)" />
+      {/* Labels */}
+      <text x={70} y={52} textAnchor="middle"
+        fontFamily="JetBrains Mono, monospace" fontSize={26} fontWeight="bold" fill="#ff1a2e">
+        0
+      </text>
+      <text x={70} y={67} textAnchor="middle"
+        fontFamily="JetBrains Mono, monospace" fontSize={10} fill="#536878">
+        / 5 PRINCIPLES MET
+      </text>
+    </svg>
+  );
+}
 
-// ── Main Component ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 export function ComplianceModule() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef<number>(0);
-  const startRef = useRef<number>(0);
-  const roRef = useRef<ResizeObserver | null>(null);
+  const [activeTab, setActiveTab]   = useState<TabId>('principles');
+  const [expandedP, setExpandedP]   = useState<string | null>(null);
+  const [expandedC, setExpandedC]   = useState<number | null>(null);
+  const [pulseCount, setPulseCount] = useState(0); // for violation counter animation
+  const pulseRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'principles' | 'rubber-stamp' | 'documents'>('principles');
-  const [expandedP, setExpandedP] = useState<string | null>('distinction');
-  const [expandedC, setExpandedC] = useState<number | null>(null);
-
-  const principlesRef = useRef<HTMLDivElement>(null);
-  const rubberStampRef = useRef<HTMLDivElement>(null);
-  const documentsRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  // Conveyor Animation state refs
-  const conveyorFiles = useRef<{ x: number; stamped: boolean; stampT: number; }[]>([]);
-  const bellCurveProgress = useRef<number>(0);
-  const persons = useRef<{ x: number; y: number; }[]>([]);
-  const reticleRadius = useRef<number>(0);
-  const stampOffset = useRef<number>(0);
-  const animInitialized = useRef<boolean>(false);
-
-  // Synchronize active tab with scroll position
+  // Animate violation counter on mount
   useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const options = {
-      root: container,
-      rootMargin: '-40px 0px -60% 0px',
-      threshold: 0,
-    };
-
-    const callback = (entries: IntersectionObserverEntry[]) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          if (entry.target === principlesRef.current) {
-            setActiveTab('principles');
-          } else if (entry.target === rubberStampRef.current) {
-            setActiveTab('rubber-stamp');
-          } else if (entry.target === documentsRef.current) {
-            setActiveTab('documents');
-          }
-        }
-      });
-    };
-
-    const observer = new IntersectionObserver(callback, options);
-    if (principlesRef.current) observer.observe(principlesRef.current);
-    if (rubberStampRef.current) observer.observe(rubberStampRef.current);
-    if (documentsRef.current) observer.observe(documentsRef.current);
-
-    return () => {
-      observer.disconnect();
-    };
+    let count = 0;
+    const id = setInterval(() => {
+      count++;
+      setPulseCount(count);
+      if (count >= IHL_PRINCIPLES.length) clearInterval(id);
+    }, 200);
+    return () => clearInterval(id);
   }, []);
 
-  const scrollToSection = (id: 'principles' | 'rubber-stamp' | 'documents') => {
-    setActiveTab(id);
-    const targetRef = id === 'principles' ? principlesRef : id === 'rubber-stamp' ? rubberStampRef : documentsRef;
-    if (targetRef.current) {
-      targetRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  const drawComplianceAnimation = (
-    ctx: CanvasRenderingContext2D,
-    w: number,
-    h: number,
-    t: number,
-    dt: number,
-  ) => {
-    const panelY = 24;
-
-    if (!animInitialized.current) {
-      animInitialized.current = true;
-      conveyorFiles.current = [];
-      for (let i = 0; i < 20; i++) {
-        conveyorFiles.current.push({ x: i * 70, stamped: false, stampT: -99 });
-      }
-      // Person crowd grid
-      persons.current = [];
-      const cols = 14; const rows = 5;
-      const crowdW = w * 0.45; const crowdH = 130;
-      const crowdX = w * 0.52; const crowdY = h - 200;
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          persons.current.push({
-            x: crowdX + c * (crowdW / cols) + Math.random() * 8,
-            y: crowdY + r * (crowdH / rows) + Math.random() * 6,
-          });
-        }
-      }
-    }
-
-    bellCurveProgress.current = Math.min(bellCurveProgress.current + dt * 0.08, 1);
-    stampOffset.current += dt * 55;
-    reticleRadius.current = 20 + (t % 4) * 40;
-
-    // ─── TOP: System vs Geneva Law Split UI ─────────────────────────────
-    const splitH = h * 0.38;
-    const midX = w / 2;
-
-    // Section titles
-    drawHUDText(ctx, 'LAVENDER SYSTEM', 16, panelY + 14, '#ff1a2e', 10);
-    drawHUDText(ctx, 'GENEVA CONVENTIONS', midX + 16, panelY + 14, '#0096ff', 10);
-    drawHUDText(ctx, 'PROBABILISTIC BATCH TARGETING', 16, panelY + 26, '#536878', 8);
-    drawHUDText(ctx, 'ART. 50 — INDIVIDUALIZED ASSESSMENT', midX + 16, panelY + 26, '#536878', 8);
-
-    // Divider
-    ctx.strokeStyle = 'rgba(26, 37, 53, 0.5)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
-    ctx.beginPath(); ctx.moveTo(midX, panelY + 20); ctx.lineTo(midX, panelY + splitH + 10); ctx.stroke();
-    ctx.setLineDash([]);
-
-    // ─── LEFT: Bell Curve with error margin fill ─────────────────────────
-    const curveX = 16;
-    const curveY = panelY + splitH - 10;
-    const curveW = midX - 48;
-    const curveH = splitH - 70;
-
-    // Draw bell curve
-    ctx.beginPath();
-    for (let px = 0; px <= curveW; px++) {
-      const nx = (px / curveW - 0.5) * 6;
-      const ny = Math.exp(-nx * nx / 2) / Math.sqrt(2 * Math.PI) * 2.5;
-      if (px === 0) ctx.moveTo(curveX + px, curveY - ny * curveH);
-      else ctx.lineTo(curveX + px, curveY - ny * curveH);
-    }
-    ctx.strokeStyle = '#ffaa00';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Error margin fill (right 10%)
-    const errorStartX = curveX + curveW * 0.82;
-    ctx.save();
-    ctx.beginPath();
-    for (let px = curveW * 0.82; px <= curveW; px++) {
-      const nx = (px / curveW - 0.5) * 6;
-      const ny = Math.exp(-nx * nx / 2) / Math.sqrt(2 * Math.PI) * 2.5;
-      if (px === curveW * 0.82) ctx.moveTo(curveX + px, curveY);
-      ctx.lineTo(curveX + px, curveY - ny * curveH);
-    }
-    ctx.lineTo(curveX + curveW, curveY);
-    ctx.closePath();
-    ctx.fillStyle = `rgba(255, 26, 46, ${bellCurveProgress.current * 0.6})`;
-    ctx.fill();
-    ctx.restore();
-
-    // 10% label
-    ctx.font = 'bold 8px "JetBrains Mono", monospace';
-    ctx.fillStyle = '#ff1a2e';
-    ctx.fillText('10% ERROR', errorStartX + 2, curveY - 30);
-    ctx.font = '7px "JetBrains Mono", monospace';
-    ctx.fillStyle = '#536878';
-    ctx.fillText('NON-COMBATANTS', errorStartX - 5, curveY - 18);
-
-    // Baseline
-    ctx.strokeStyle = 'rgba(83, 104, 120, 0.3)';
-    ctx.lineWidth = 0.5;
-    ctx.beginPath(); ctx.moveTo(curveX, curveY); ctx.lineTo(curveX + curveW, curveY); ctx.stroke();
-
-    // Threshold line
-    ctx.strokeStyle = 'rgba(255, 26, 46, 0.5)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
-    ctx.beginPath(); ctx.moveTo(errorStartX, curveY - curveH * 0.2); ctx.lineTo(errorStartX, curveY); ctx.stroke();
-    ctx.setLineDash([]);
-
-    // ─── RIGHT: Geneva Conventions Folder ────────────────────────────────
-    const folderX = midX + 16;
-    const folderY = panelY + 40;
-    const folderW = w - folderX - 16;
-    const folderH = splitH - 50;
-
-    ctx.fillStyle = 'rgba(0, 150, 255, 0.05)';
-    ctx.fillRect(folderX, folderY, folderW, folderH);
-    ctx.strokeStyle = 'rgba(0, 150, 255, 0.3)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(folderX, folderY, folderW, folderH);
-
-    // Folder tab
-    ctx.fillStyle = 'rgba(0, 150, 255, 0.15)';
-    ctx.fillRect(folderX, folderY - 12, 140, 12);
-    ctx.font = 'bold 7px "JetBrains Mono", monospace';
-    ctx.fillStyle = '#0096ff';
-    ctx.fillText('GENEVA CONVENTION IV', folderX + 4, folderY - 2);
-
-    // Law text lines
-    const laws = [
-      { text: '• Art. 50: Individualized Assessment', strikeout: false },
-      { text: '• Presumption of Civilian Status', strikeout: false },
-      { text: '• Positive Identification Required', strikeout: false },
-      { text: '• Distinction: Combatant vs Civilian', strikeout: false },
-    ];
-
-    laws.forEach((law, i) => {
-      const ly = folderY + 18 + i * 22;
-      ctx.font = '8px "JetBrains Mono", monospace';
-      ctx.fillStyle = law.strikeout ? '#2a3a4a' : '#ccd6e0';
-      ctx.fillText(law.text, folderX + 8, ly);
-    });
-
-    // Red strikeout line (animated, grows over time)
-    const strikeProgress = Math.min(t * 0.12, 1);
-    if (strikeProgress > 0) {
-      ctx.strokeStyle = '#ff1a2e';
-      ctx.lineWidth = 2;
-      const strikeY = folderY + 18 - 3;
-      ctx.beginPath();
-      ctx.moveTo(folderX + 8, strikeY);
-      ctx.lineTo(folderX + 8 + (folderW - 16) * strikeProgress, strikeY);
-      ctx.stroke();
-      if (strikeProgress > 0.6) {
-        ctx.font = 'bold 8px "JetBrains Mono", monospace';
-        ctx.fillStyle = '#ff1a2e';
-        ctx.fillText('— SYSTEM OVERRIDE — COMPLIANCE BYPASSED', folderX + 8, folderY + 18 + 4 * 22);
-      }
-    }
-
-    // ─── MIDDLE: Industrial Batch Stamping ───────────────────────────────
-    const conveyorY = panelY + splitH + 20;
-    const conveyorH = h * 0.22;
-    const conveyorW = w - 32;
-
-    drawHUDText(ctx, 'INDUSTRIAL BATCH APPROVAL — BATCH SIZE: UNLIMITED', 16, conveyorY - 8, '#ff1a2e', 9);
-
-    // Conveyor belt
-    ctx.fillStyle = 'rgba(13, 21, 32, 0.9)';
-    ctx.fillRect(16, conveyorY, conveyorW, conveyorH);
-    ctx.strokeStyle = 'rgba(26, 37, 53, 0.8)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(16, conveyorY, conveyorW, conveyorH);
-
-    // Belt segments
-    const beltSpeed = stampOffset.current % 40;
-    for (let bx = -40 + beltSpeed; bx < conveyorW + 40; bx += 40) {
-      ctx.strokeStyle = 'rgba(26, 37, 53, 0.4)';
-      ctx.lineWidth = 0.5;
-      ctx.beginPath(); ctx.moveTo(16 + bx, conveyorY + conveyorH - 8); ctx.lineTo(16 + bx, conveyorY + conveyorH); ctx.stroke();
-    }
-
-    // Moving files on conveyor
-    const fileW = 55; const fileH = conveyorH * 0.5;
-    const fileGap = 80;
-    for (let fi = 0; fi < 8; fi++) {
-      const fx = 30 + (fi * fileGap - stampOffset.current % (fileGap * 8));
-      if (fx < -fileW || fx > conveyorW + 32) continue;
-      const fy = conveyorY + (conveyorH - fileH) / 2;
-
-      ctx.fillStyle = 'rgba(255, 26, 46, 0.1)';
-      ctx.fillRect(fx, fy, fileW, fileH);
-      ctx.strokeStyle = 'rgba(255, 26, 46, 0.3)';
-      ctx.lineWidth = 0.5;
-      ctx.strokeRect(fx, fy, fileW, fileH);
-
-      // Stamp overlay
-      ctx.font = 'bold 9px "JetBrains Mono", monospace';
-      ctx.fillStyle = 'rgba(255, 26, 46, 0.8)';
-      ctx.save();
-      ctx.translate(fx + fileW / 2, fy + fileH / 2);
-      ctx.rotate(-0.2);
-      ctx.strokeStyle = '#ff1a2e';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(-18, -8, 36, 16);
-      ctx.fillText('APPROVED', -18, 4);
-      ctx.restore();
-    }
-
-    // Stamp arms (mechanical)
-    const stampArms = [0.2, 0.5, 0.8];
-    for (const pos of stampArms) {
-      const sx = 16 + conveyorW * pos;
-      const armCycle = (t * 2.5 + pos * 3) % 1;
-      const armY = conveyorY + 8 + (armCycle < 0.4 ? armCycle * 0.5 * conveyorH : (1 - armCycle) * 0.8 * conveyorH * 0.6);
-      ctx.fillStyle = 'rgba(83, 104, 120, 0.4)';
-      ctx.fillRect(sx - 8, conveyorY - 2, 16, armY - conveyorY + 2);
-      ctx.fillStyle = '#ffaa00';
-      ctx.fillRect(sx - 12, armY, 24, 10);
-      ctx.font = 'bold 5px "JetBrains Mono", monospace';
-      ctx.fillStyle = '#050508';
-      ctx.textAlign = 'center';
-      ctx.fillText('STAMP', sx, armY + 8);
-      ctx.textAlign = 'left';
-    }
-
-    // Batch counter
-    const batchCount = Math.floor(t * 18);
-    drawHUDText(ctx, `BATCH PROCESSED: ${batchCount.toLocaleString().padStart(6, '0')}`, 16, conveyorY + conveyorH + 14, '#ff1a2e', 9);
-    drawHUDText(ctx, `INDIVIDUALLY REVIEWED: 000000`, w * 0.5, conveyorY + conveyorH + 14, '#0096ff', 9);
-
-    // ─── BOTTOM: Area-Wide Reticle ───────────────────────────────────────
-    const crowdBaseY = conveyorY + conveyorH + 32;
-    drawHUDText(ctx, 'AREA-WIDE TARGETING — DISTINCTION PRINCIPLE VIOLATION', 16, crowdBaseY, '#ff1a2e', 9);
-
-    // Crowd of person icons
-    if (persons.current.length > 0) {
-      const firstY = persons.current[0].y;
-      for (const p of persons.current) {
-        const pY = crowdBaseY + 14 + (p.y - firstY);
-        // Thermal color based on reticle proximity
-        const isInReticle = Math.hypot(p.x - w * 0.74, pY - (crowdBaseY + 65)) < reticleRadius.current;
-        const color = isInReticle ? '#ff1a2e' : 'rgba(204, 214, 224, 0.4)';
-        drawPersonIcon(ctx, p.x, pY, 7, color);
-      }
-    }
-
-    // Growing reticle crosshair
-    const rCX = w * 0.74;
-    const rCY = crowdBaseY + 65;
-    const rR = Math.min(reticleRadius.current, 130);
-
-    ctx.strokeStyle = `rgba(255, 26, 46, ${0.5 + 0.3 * Math.sin(t * 3)})`;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(rCX, rCY, rR, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Crosshair lines
-    ctx.beginPath(); ctx.moveTo(rCX - rR, rCY); ctx.lineTo(rCX + rR, rCY); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(rCX, rCY - rR); ctx.lineTo(rCX, rCY + rR); ctx.stroke();
-
-    // Thermal overlay
-    const thermalR = rR * 0.85;
-    const grad = ctx.createRadialGradient(rCX, rCY, 0, rCX, rCY, thermalR);
-    grad.addColorStop(0, 'rgba(255, 80, 0, 0.35)');
-    grad.addColorStop(0.5, 'rgba(255, 26, 46, 0.15)');
-    grad.addColorStop(1, 'rgba(255, 26, 46, 0)');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(rCX, rCY, thermalR, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Label
-    const blink = Math.floor(t * 2) % 2 === 0;
-    if (blink) {
-      drawHUDText(ctx, `AREA WEAPON // DISTINCTION PRINCIPLE VIOLATED`, rCX - rR * 0.8, rCY + rR + 10, '#ff1a2e', 8);
-    }
-  };
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let running = true;
-
-    const resize = () => {
-      const r = container.getBoundingClientRect();
-      if (r.width < 10 || r.height < 10) return;
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = r.width * dpr;
-      canvas.height = r.height * dpr;
-      ctx.scale(dpr, dpr);
-    };
-    resize();
-
-    roRef.current = new ResizeObserver(resize);
-    roRef.current.observe(container);
-
-    let prevTime = performance.now();
-    const render = (ts: number) => {
-      if (!running) return;
-      if (!startRef.current) startRef.current = ts;
-      const t = (ts - startRef.current) / 1000;
-      const dt = (ts - prevTime) / 1000;
-      prevTime = ts;
-
-      const dpr = window.devicePixelRatio || 1;
-      const w = canvas.width / dpr;
-      const h = canvas.height / dpr;
-
-      ctx.fillStyle = '#060a12';
-      ctx.fillRect(0, 0, w, h);
-
-      // Subtle grid
-      ctx.strokeStyle = 'rgba(26,37,53,0.18)'; ctx.lineWidth = 0.5;
-      ctx.setLineDash([]);
-      const gS = 38;
-      for (let gx = 0; gx < w; gx += gS) {
-        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h); ctx.stroke();
-      }
-      for (let gy = 0; gy < h; gy += gS) {
-        ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
-      }
-
-      if (w > 100 && h > 60) {
-        drawComplianceAnimation(ctx, w, h, t, dt);
-      }
-      animRef.current = requestAnimationFrame(render);
-    };
-    animRef.current = requestAnimationFrame(render);
-
-    return () => {
-      running = false;
-      cancelAnimationFrame(animRef.current);
-      roRef.current?.disconnect();
-    };
-  }, []);
-
-  const mono = "'JetBrains Mono', monospace";
-
-  const tabBtn = (id: typeof activeTab, label: string) => {
-    const active = activeTab === id;
-    return (
-      <button key={id} onClick={() => scrollToSection(id)} style={{
-        padding: '5px 11px', borderRadius: '5px 5px 0 0', fontSize: '7.5px',
-        fontWeight: 700, letterSpacing: '0.4px', cursor: 'pointer', fontFamily: mono,
-        transition: 'all 0.15s', outline: 'none',
-        background: active ? 'rgba(255,26,46,0.1)' : 'transparent',
-        color: active ? '#ff8080' : '#536878',
-        border: active ? '1px solid rgba(255,26,46,0.22)' : '1px solid transparent',
-        borderBottom: '1px solid transparent',
-      }}>{label}</button>
-    );
-  };
+  const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+    { id: 'principles', label: 'IHL VIOLATIONS',    icon: <Scale className="w-3 h-3" /> },
+    { id: 'cases',      label: 'DOCUMENTED CASES',  icon: <AlertTriangle className="w-3 h-3" /> },
+    { id: 'documents',  label: 'KEY DOCUMENTS',     icon: <BookOpen className="w-3 h-3" /> },
+  ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#060a12', fontFamily: mono }}>
+    <div
+      className="w-full h-full flex flex-col font-mono select-none"
+      style={{ background: '#040408', color: '#ccd6e0', fontSize: 12 }}
+    >
 
-      {/* ── Canvas animation ── */}
-      <div ref={containerRef} style={{ flexShrink: 0, height: '450px', position: 'relative' }}>
-        <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+      {/* ── HEADER ──────────────────────────────────────────────────────── */}
+      <div
+        className="flex items-center justify-between px-4 shrink-0"
+        style={{ height: 62, borderBottom: '1px solid rgba(255,26,46,0.18)' }}
+      >
+        <div>
+          <div className="text-[8px] tracking-widest mb-0.5" style={{ color: '#ff1a2e' }}>
+            MODULE 6 // IHL COMPLIANCE & ACCOUNTABILITY
+          </div>
+          <div className="font-bold" style={{ fontSize: 13 }}>
+            HUMANITARIAN COMPLIANCE ASSESSMENT
+          </div>
+          <div className="text-[7.5px]" style={{ color: '#536878' }}>
+            International Humanitarian Law vs. documented LAWS deployments  ·  ICRC / HRW / UN CCW
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <a
+            href="https://stopkillerrobots.org/take-action/sign-our-petition-now/"
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border font-bold text-[7px] transition-all"
+            style={{ background: 'rgba(236,72,153,0.1)', borderColor: 'rgba(236,72,153,0.4)', color: '#ec4899' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(236,72,153,0.18)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(236,72,153,0.1)')}
+          >
+            <ExternalLink className="w-2.5 h-2.5" /> SIGN THE PETITION
+          </a>
+          <span
+            className="px-2.5 py-1.5 rounded border text-[7.5px] font-bold"
+            style={{ background: 'rgba(255,26,46,0.1)', borderColor: 'rgba(255,26,46,0.35)', color: '#ff1a2e' }}
+          >
+            NO BINDING TREATY
+          </span>
+        </div>
       </div>
 
-      {/* ── Scrollable data section ── */}
-      <div ref={scrollContainerRef} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', scrollBehavior: 'smooth' }} className="compliance-scroll">
-
-        {/* Header */}
-        <div style={{ padding: '9px 16px 8px', borderBottom: '1px solid rgba(255,26,46,0.18)', background: 'rgba(255,26,46,0.03)', flexShrink: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: '7.5px', color: '#ff1a2e', fontWeight: 700, letterSpacing: '0.15em' }}>MODULE 6 // IHL COMPLIANCE &amp; ACCOUNTABILITY</div>
-              <div style={{ fontSize: '12px', fontWeight: 800, color: '#fff', marginTop: '1px' }}>HUMANITARIAN COMPLIANCE ASSESSMENT</div>
-            </div>
-            <span style={{ fontSize: '7px', fontWeight: 800, padding: '3px 7px', borderRadius: '3px', background: 'rgba(255,26,46,0.14)', border: '1px solid rgba(255,26,46,0.38)', color: '#ff1a2e' }}>NO BINDING TREATY</span>
+      {/* ── HERO DASHBOARD ──────────────────────────────────────────────── */}
+      <div
+        className="flex shrink-0"
+        style={{ height: 210, borderBottom: '1px solid rgba(26,37,53,0.5)' }}
+      >
+        {/* LEFT: What IHL requires */}
+        <div
+          className="flex flex-col justify-center p-4"
+          style={{ width: '33%', borderRight: '1px solid rgba(26,37,53,0.4)' }}
+        >
+          <div className="flex items-center gap-1.5 mb-2">
+            <Scale className="w-3.5 h-3.5 shrink-0" style={{ color: '#0096ff' }} />
+            <span className="font-bold text-[9px] tracking-wider" style={{ color: '#0096ff' }}>
+              WHAT IHL REQUIRES
+            </span>
           </div>
-          <div style={{ marginTop: '7px', padding: '6px 10px', borderRadius: '5px', background: 'rgba(255,170,0,0.06)', border: '1px solid rgba(255,170,0,0.22)', display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
-            <AlertTriangle size={10} style={{ color: '#ffaa00', marginTop: '2px', flexShrink: 0 }} />
-            <div style={{ fontSize: '8px', color: '#c8a63a', lineHeight: '1.55' }}>
-              <strong style={{ color: '#ffaa00' }}>MEANINGFUL HUMAN CONTROL (MHC)</strong> requires: (1) understanding and predicting system behaviour, (2) ability to intervene and abort, (3) genuine traceable legal responsibility. A 20-second rubber stamp on an AI-generated kill list meets none of these criteria.
-              {' '}<a href="https://www.article36.org/weapons/autonomous-weapons/" target="_blank" rel="noopener noreferrer" style={{ color: '#ffaa00', textDecoration: 'underline' }}>Full definition ↗</a>
-            </div>
+          <div className="text-[7px] mb-3 leading-relaxed" style={{ color: '#536878' }}>
+            Five binding principles of international humanitarian law apply to every weapons system without exception — including fully autonomous systems.
+          </div>
+          <div className="space-y-1.5">
+            {IHL_PRINCIPLES.map(p => (
+              <div key={p.id} className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: p.color }} />
+                <span className="text-[7px]" style={{ color: '#ccd6e0' }}>{p.name}</span>
+                <span className="text-[6px] ml-auto" style={{ color: '#2a3a4a' }}>{p.article.split('·')[0].trim()}</span>
+              </div>
+            ))}
+          </div>
+          <div
+            className="mt-3 rounded px-2 py-1.5 text-[6.5px] leading-relaxed"
+            style={{ background: 'rgba(0,150,255,0.05)', border: '1px solid rgba(0,150,255,0.15)', color: '#536878' }}
+          >
+            <span style={{ color: '#0096ff', fontWeight: 700 }}>ICRC: </span>
+            "These principles are not optional — they apply to all states and all weapons, regardless of novelty or operational advantage."
           </div>
         </div>
 
-        {/* Tab nav - Sticky for quick navigation */}
-        <div style={{ display: 'flex', gap: '2px', padding: '6px 16px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, background: 'rgba(5, 8, 14, 0.95)', position: 'sticky', top: 0, zIndex: 10, backdropFilter: 'blur(8px)' }}>
-          {tabBtn('principles', '⚖️ IHL PRINCIPLES')}
-          {tabBtn('rubber-stamp', '📋 RUBBER STAMP CASES')}
-          {tabBtn('documents', '📑 KEY DOCUMENTS')}
+        {/* CENTER: Compliance score */}
+        <div
+          className="flex flex-col items-center justify-center gap-2"
+          style={{ flex: '1 1 0', borderRight: '1px solid rgba(26,37,53,0.4)' }}
+        >
+          <div className="text-[9px] font-bold tracking-widest" style={{ color: '#ff1a2e' }}>
+            IHL COMPLIANCE SCORE
+          </div>
+          <ComplianceGauge />
+          {/* Five principle dots */}
+          <div className="flex gap-2 mt-1">
+            {IHL_PRINCIPLES.map((p, i) => (
+              <div
+                key={p.id}
+                className="flex flex-col items-center gap-0.5"
+                title={`${p.name}: VIOLATED`}
+              >
+                <div
+                  className="w-4 h-4 rounded-full flex items-center justify-center transition-all"
+                  style={{
+                    background:  i < pulseCount ? `rgba(${p.id === 'distinction' ? '255,26,46' : p.id === 'proportionality' ? '255,102,0' : p.id === 'precaution' ? '255,170,0' : p.id === 'humanity' ? '129,140,248' : '236,72,153'},0.2)` : 'rgba(26,37,53,0.3)',
+                    border:      `1px solid ${i < pulseCount ? p.color : 'rgba(26,37,53,0.4)'}`,
+                    boxShadow:   i < pulseCount ? `0 0 6px ${p.color}60` : 'none',
+                  }}
+                >
+                  {i < pulseCount && <XCircle className="w-2.5 h-2.5" style={{ color: p.color }} />}
+                </div>
+                <div className="text-[5px] text-center" style={{ color: i < pulseCount ? p.color : '#2a3a4a', maxWidth: 28, lineHeight: 1.2 }}>
+                  {p.name.split(' ')[0]}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-1">
+            <div className="font-bold text-[8px]" style={{ color: '#ff1a2e' }}>
+              {pulseCount}/{IHL_PRINCIPLES.length} PRINCIPLES VIOLATED
+            </div>
+            <div className="text-[6.5px] mt-0.5" style={{ color: '#536878' }}>by documented LAWS deployments</div>
+          </div>
         </div>
 
-        {/* Unified scrolling content */}
-        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '28px', flex: 1 }}>
-
-          {/* ── IHL PRINCIPLES ── */}
-          <div ref={principlesRef} style={{ display: 'flex', flexDirection: 'column', gap: '6px', scrollMarginTop: '36px' }}>
-            <div style={{ fontSize: '9px', fontWeight: 800, color: '#ff8080', letterSpacing: '0.8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '4px', marginBottom: '6px' }}>⚖️ IHL PRINCIPLES &amp; VIOLATIONS</div>
-            <div style={{ fontSize: '7.5px', color: '#536878', marginBottom: '6px' }}>
-              Five binding IHL principles applicable to all weapons systems. Each is routinely bypassed by documented LAWS deployments. Click any row to expand.
+        {/* RIGHT: LAWS reality */}
+        <div
+          className="flex flex-col justify-center p-4"
+          style={{ width: '33%' }}
+        >
+          <div className="flex items-center gap-1.5 mb-2">
+            <Zap className="w-3.5 h-3.5 shrink-0" style={{ color: '#ff1a2e' }} />
+            <span className="font-bold text-[9px] tracking-wider" style={{ color: '#ff1a2e' }}>
+              LAWS IN PRACTICE
+            </span>
+          </div>
+          <div className="space-y-2">
+            {[
+              { label: 'Lavender batch targets',    value: '37,000',  col: '#ff1a2e', sub: 'pattern-of-life AI classification' },
+              { label: 'Max. civilian deaths OK\'d', value: '20',      col: '#ff6600', sub: 'per junior-rank target (IDF policy)' },
+              { label: 'Habsora review time',        value: '~20 sec', col: '#ffaa00', sub: 'per AI-generated strike recommendation' },
+              { label: 'Binding international law',  value: '0',       col: '#818cf8', sub: 'treaties specifically regulating LAWS' },
+            ].map(({ label, value, col, sub }) => (
+              <div key={label} className="flex items-center gap-3">
+                <div>
+                  <div className="font-bold tabular-nums leading-none" style={{ fontSize: 14, color: col }}>{value}</div>
+                  <div className="text-[5.5px] mt-0.5" style={{ color: '#2a3a4a' }}>{sub}</div>
+                </div>
+                <div className="text-[6.5px] ml-auto text-right" style={{ color: '#536878', maxWidth: 90 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+          <div
+            className="mt-3 rounded px-2 py-1.5 flex items-start gap-1.5"
+            style={{ background: 'rgba(255,26,46,0.05)', border: '1px solid rgba(255,26,46,0.15)' }}
+          >
+            <AlertTriangle className="w-2.5 h-2.5 shrink-0 mt-0.5" style={{ color: '#ff6600' }} />
+            <div className="text-[6.5px] leading-relaxed" style={{ color: '#536878' }}>
+              <span style={{ color: '#ff1a2e', fontWeight: 700 }}>UN SG Guterres (2023): </span>
+              "Machines with the power to take lives without human involvement are politically unacceptable and morally repugnant."
             </div>
-            {IHL_PRINCIPLES.map((p) => {
-              const exp = expandedP === p.id;
+          </div>
+        </div>
+      </div>
+
+      {/* ── MHC ALERT BAR ────────────────────────────────────────────────── */}
+      <div
+        className="flex items-center gap-2 px-4 py-2 shrink-0"
+        style={{ background: 'rgba(255,170,0,0.05)', borderBottom: '1px solid rgba(255,170,0,0.18)' }}
+      >
+        <AlertTriangle className="w-3.5 h-3.5 shrink-0" style={{ color: '#ffaa00' }} />
+        <span className="text-[7.5px] leading-relaxed" style={{ color: '#a07a20' }}>
+          <strong style={{ color: '#ffaa00' }}>MEANINGFUL HUMAN CONTROL (MHC) </strong>
+          requires: (1) understanding and predicting system behaviour, (2) genuine ability to intervene and abort, (3) traceable legal responsibility.
+          A 20-second rubber stamp on an AI-generated kill list meets
+          {' '}<strong style={{ color: '#ff1a2e' }}>none</strong>{' '}
+          of these criteria.
+          {' '}
+          <a
+            href="https://www.article36.org/weapons/autonomous-weapons/"
+            target="_blank" rel="noopener noreferrer"
+            className="underline transition-colors"
+            style={{ color: '#ffaa00' }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#ffd166')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#ffaa00')}
+          >
+            Full definition ↗
+          </a>
+        </span>
+      </div>
+
+      {/* ── STICKY TAB NAV ──────────────────────────────────────────────── */}
+      <div
+        className="flex gap-1 px-3 pt-2 shrink-0"
+        style={{ borderBottom: '1px solid rgba(26,37,53,0.5)', background: 'rgba(4,4,8,0.97)' }}
+      >
+        {TABS.map(tab => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-t text-[7.5px] font-bold transition-all border-b-2"
+              style={{
+                background:   active ? 'rgba(255,26,46,0.08)' : 'transparent',
+                color:        active ? '#ff8080' : '#536878',
+                borderColor:  active ? '#ff1a2e' : 'transparent',
+                borderBottom: `2px solid ${active ? '#ff1a2e' : 'transparent'}`,
+              }}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── TAB CONTENT ──────────────────────────────────────────────────── */}
+      <div
+        className="flex-1 overflow-y-auto p-4"
+        style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,26,46,0.3) rgba(0,0,0,0.2)' }}
+      >
+
+        {/* ══ PRINCIPLES TAB ════════════════════════════════════════════ */}
+        {activeTab === 'principles' && (
+          <div className="space-y-2">
+            <div className="text-[7.5px] mb-3" style={{ color: '#536878' }}>
+              Five binding IHL principles applicable to all weapons systems. All are routinely bypassed by documented LAWS deployments. Click any row to expand the legal analysis.
+            </div>
+
+            {/* Law vs. Practice Header */}
+            <div
+              className="grid gap-0 text-[7px] font-bold mb-1"
+              style={{ gridTemplateColumns: '1fr 1fr 1fr', padding: '4px 12px' }}
+            >
+              <span style={{ color: '#0096ff' }}>THE LAW (IHL REQUIREMENT)</span>
+              <span className="text-center" style={{ color: '#536878' }}>→ THE GAP →</span>
+              <span className="text-right" style={{ color: '#ff1a2e' }}>LAWS IN PRACTICE</span>
+            </div>
+
+            {IHL_PRINCIPLES.map(p => {
+              const isOpen = expandedP === p.id;
               return (
-                <div key={p.id} style={{ border: exp ? '1px solid rgba(255,26,46,0.28)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '5px', overflow: 'hidden', background: exp ? 'rgba(255,26,46,0.02)' : 'rgba(255,255,255,0.01)' }}>
+                <div
+                  key={p.id}
+                  className="rounded overflow-hidden transition-all"
+                  style={{
+                    border:     `1px solid ${isOpen ? `${p.color}40` : 'rgba(26,37,53,0.4)'}`,
+                    background: isOpen ? `${p.color}06` : 'rgba(26,37,53,0.08)',
+                    boxShadow:  isOpen ? `0 0 16px ${p.color}18` : 'none',
+                  }}
+                >
+                  {/* Row header */}
                   <div
-                    onClick={() => setExpandedP(exp ? null : p.id)}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', cursor: 'pointer', gap: '10px', background: exp ? 'rgba(255,26,46,0.04)' : 'transparent' }}
-                    onMouseEnter={(e) => { if (!exp) e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
-                    onMouseLeave={(e) => { if (!exp) e.currentTarget.style.background = 'transparent'; }}
+                    className="grid cursor-pointer transition-all"
+                    style={{
+                      gridTemplateColumns: '1fr auto 1fr',
+                      padding: '8px 12px',
+                      gap: 12,
+                      background: isOpen ? `${p.color}08` : 'transparent',
+                    }}
+                    onClick={() => setExpandedP(isOpen ? null : p.id)}
+                    onMouseEnter={e => { if (!isOpen) e.currentTarget.style.background = 'rgba(26,37,53,0.15)'; }}
+                    onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = 'transparent'; }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-                      <XCircle size={11} style={{ color: '#ff1a2e', flexShrink: 0 }} />
+                    {/* Left: IHL rule */}
+                    <div className="flex items-start gap-2 min-w-0">
+                      <div className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" style={{ background: p.color }} />
                       <div>
-                        <div style={{ fontSize: '9.5px', fontWeight: 700, color: exp ? '#fff' : '#ccd6e0' }}>{p.name}</div>
-                        <div style={{ fontSize: '7px', color: '#536878', marginTop: '1px' }}>{p.article}</div>
+                        <div className="font-bold text-[9px]" style={{ color: isOpen ? '#fff' : '#ccd6e0' }}>
+                          {p.name}
+                        </div>
+                        <div className="text-[6.5px] mt-0.5" style={{ color: '#2a3a4a' }}>{p.article}</div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                      <span style={{ fontSize: '7px', fontWeight: 800, padding: '2px 5px', borderRadius: '3px', background: 'rgba(255,26,46,0.14)', border: '1px solid rgba(255,26,46,0.33)', color: '#ff1a2e' }}>VIOLATED</span>
-                      {exp ? <ChevronDown size={10} color="#536878" /> : <ChevronRight size={10} color="#536878" />}
+
+                    {/* Center: status */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span
+                        className="px-1.5 py-0.5 rounded text-[7px] font-bold"
+                        style={{
+                          background: `${p.color}18`,
+                          border:     `1px solid ${p.color}50`,
+                          color:      p.color,
+                        }}
+                      >
+                        VIOLATED
+                      </span>
+                      {isOpen
+                        ? <ChevronDown className="w-3 h-3" style={{ color: '#536878' }} />
+                        : <ChevronRight className="w-3 h-3" style={{ color: '#536878' }} />}
+                    </div>
+
+                    {/* Right: violation key */}
+                    <div className="text-right">
+                      <div className="text-[7px]" style={{ color: '#ff1a2e' }}>{p.conflictKey}</div>
+                      <div className="text-[6px] mt-0.5" style={{ color: '#2a3a4a' }}>{p.system}</div>
                     </div>
                   </div>
-                  {exp && (
-                    <div style={{ padding: '9px 12px 11px 32px', borderTop: '1px solid rgba(255,255,255,0.04)', background: 'rgba(0,0,0,0.18)' }}>
-                      <a href={p.treatyUrl} target="_blank" rel="noopener noreferrer"
-                        style={{ fontSize: '7.5px', color: '#0096ff', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', marginBottom: '7px' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = '#38bdf8')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = '#0096ff')}
-                      ><ExternalLink size={8} /> {p.treaty} ↗</a>
-                      <div style={{ padding: '6px 10px', borderRadius: '4px', marginBottom: '6px', background: 'rgba(0,150,255,0.06)', border: '1px solid rgba(0,150,255,0.12)', fontSize: '8px', color: '#8892a4', lineHeight: '1.55' }}>
-                        <span style={{ color: '#38bdf8', fontWeight: 700 }}>THE RULE: </span>{p.description}
+
+                  {/* Expanded content */}
+                  {isOpen && (
+                    <div
+                      className="px-4 pb-4 pt-3 space-y-3"
+                      style={{ borderTop: `1px solid ${p.color}20` }}
+                    >
+                      {/* Treaty link */}
+                      <a
+                        href={p.treatyUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-[7.5px] transition-colors"
+                        style={{ color: '#0096ff' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#38bdf8')}
+                        onMouseLeave={e => (e.currentTarget.style.color = '#0096ff')}
+                      >
+                        <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                        {p.treaty} ↗
+                      </a>
+
+                      {/* Two-column: law vs conflict */}
+                      <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                        <div
+                          className="rounded p-3"
+                          style={{ background: 'rgba(0,150,255,0.06)', border: '1px solid rgba(0,150,255,0.15)' }}
+                        >
+                          <div className="text-[7px] font-bold mb-1.5" style={{ color: '#38bdf8' }}>
+                            THE RULE
+                          </div>
+                          <div className="text-[7.5px] leading-relaxed" style={{ color: '#8892a4' }}>
+                            {p.rule}
+                          </div>
+                        </div>
+                        <div
+                          className="rounded p-3"
+                          style={{ background: 'rgba(255,26,46,0.06)', border: `1px solid ${p.color}25` }}
+                        >
+                          <div className="text-[7px] font-bold mb-1.5" style={{ color: p.color }}>
+                            LAWS CONFLICT
+                          </div>
+                          <div className="text-[7.5px] leading-relaxed" style={{ color: '#8892a4' }}>
+                            {p.conflict}
+                          </div>
+                        </div>
                       </div>
-                      <div style={{ padding: '6px 10px', borderRadius: '4px', marginBottom: '6px', background: 'rgba(255,26,46,0.05)', border: '1px solid rgba(255,26,46,0.12)', fontSize: '8px', color: '#8892a4', lineHeight: '1.55' }}>
-                        <span style={{ color: '#ff1a2e', fontWeight: 700 }}>LAWS CONFLICT: </span>{p.lawsConflict}
-                      </div>
-                      <a href={p.caseUrl} target="_blank" rel="noopener noreferrer"
-                        style={{ fontSize: '7.5px', color: '#ffaa00', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = '#ffd166')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = '#ffaa00')}
-                      ><ExternalLink size={8} /> {p.caseNote} ↗</a>
+
+                      {/* Source */}
+                      <a
+                        href={p.caseUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-[7px] transition-colors"
+                        style={{ color: '#ffaa00' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#ffd166')}
+                        onMouseLeave={e => (e.currentTarget.style.color = '#ffaa00')}
+                      >
+                        <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                        {p.caseNote} ↗
+                      </a>
                     </div>
                   )}
                 </div>
               );
             })}
-          </div>
 
-          {/* Divider */}
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }} />
-
-          {/* ── RUBBER STAMP CASES ── */}
-          <div ref={rubberStampRef} style={{ display: 'flex', flexDirection: 'column', gap: '8px', scrollMarginTop: '36px' }}>
-            <div style={{ fontSize: '9px', fontWeight: 800, color: '#ffaa00', letterSpacing: '0.8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '4px', marginBottom: '6px' }}>📋 DOCUMENTED RUBBER STAMP CASES</div>
-            <div style={{ padding: '7px 10px', borderRadius: '5px', background: 'rgba(255,26,46,0.05)', border: '1px solid rgba(255,26,46,0.16)', fontSize: '8px', color: '#8892a4', lineHeight: '1.6', marginBottom: '4px' }}>
-              <span style={{ color: '#ff8080', fontWeight: 700 }}>THE RUBBER STAMP PROBLEM: </span>
-              When humans approve AI kill lists at machine speed, oversight becomes legal fiction. Cases below are documented from investigative journalism and UN expert reports.
-            </div>
-            {RUBBER_STAMP_CASES.map((c, i) => {
-              const exp = expandedC === i;
-              return (
-                <div key={i} style={{ border: exp ? '1px solid rgba(255,170,0,0.28)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '5px', overflow: 'hidden', background: exp ? 'rgba(255,170,0,0.02)' : 'rgba(255,255,255,0.01)' }}>
-                  <div
-                    onClick={() => setExpandedC(exp ? null : i)}
-                    style={{ padding: '9px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', background: exp ? 'rgba(255,170,0,0.04)' : 'transparent' }}
-                    onMouseEnter={(e) => { if (!exp) e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
-                    onMouseLeave={(e) => { if (!exp) e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#fff' }}>{c.system}</div>
-                      <div style={{ fontSize: '7px', color: '#536878', marginTop: '2px' }}>{c.country}</div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px', flexShrink: 0, flexWrap: 'wrap' }}>
-                      <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '7.5px', fontWeight: 700, background: 'rgba(255,26,46,0.1)', border: '1px solid rgba(255,26,46,0.24)', color: '#ff8080' }}>⏱ {c.reviewTime}</span>
-                      {c.targetsPerDay > 0 && <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '7.5px', fontWeight: 700, background: 'rgba(255,170,0,0.08)', border: '1px solid rgba(255,170,0,0.2)', color: '#ffaa00' }}>{c.targetsPerDay.toLocaleString()}/DAY</span>}
-                    </div>
-                    {exp ? <ChevronDown size={11} color="#536878" /> : <ChevronRight size={11} color="#536878" />}
-                  </div>
-                  {exp && (
-                    <div style={{ padding: '8px 12px 11px', borderTop: '1px solid rgba(255,255,255,0.04)', background: 'rgba(0,0,0,0.22)' }}>
-                      <p style={{ fontSize: '8.5px', color: '#8892a4', lineHeight: '1.65', margin: '0 0 7px' }}>{c.detail}</p>
-                      <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer"
-                        style={{ fontSize: '7.5px', color: '#0096ff', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = '#38bdf8')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = '#0096ff')}
-                      ><ExternalLink size={9} /> {c.source} ↗</a>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* MHC vs Rubber Stamp comparison panel */}
-            <div style={{ padding: '11px', borderRadius: '6px', background: 'rgba(255,255,255,0.012)', border: '1px solid rgba(255,255,255,0.06)', marginTop: '8px' }}>
-              <div style={{ fontSize: '7.5px', color: '#536878', fontWeight: 700, marginBottom: '9px', letterSpacing: '0.4px' }}>MHC vs. RUBBER STAMP — DECISION CHAIN COMPARISON</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px' }}>
+            {/* MHC vs Rubber Stamp comparison */}
+            <div
+              className="rounded p-3 mt-4"
+              style={{ background: 'rgba(26,37,53,0.15)', border: '1px solid rgba(26,37,53,0.4)' }}
+            >
+              <div className="text-[8px] font-bold mb-3" style={{ color: '#536878' }}>
+                MEANINGFUL HUMAN CONTROL vs. RUBBER STAMP — DECISION CHAIN
+              </div>
+              <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
                 {[
-                  { title: '✓ MEANINGFUL HUMAN CONTROL', color: '#00d47e', items: ['Commander reviews intelligence', 'Independent target verification', 'Proportionality assessed per-case', 'Precautionary alternatives weighed', 'Deliberate, accountable authorisation', 'Legal responsibility is traceable'] },
-                  { title: '✗ RUBBER STAMP (LAWS)', color: '#ff1a2e', items: ['AI generates target list', '20-second "review" per life', 'No independent verification', 'Proportionality pre-computed', 'Click to approve at machine pace', 'Accountability gap — who decides?'] },
-                ].map((col) => (
-                  <div key={col.title} style={{ padding: '8px', borderRadius: '5px', background: `${col.color}09`, border: `1px solid ${col.color}20` }}>
-                    <div style={{ fontSize: '7.5px', fontWeight: 800, color: col.color, marginBottom: '7px' }}>{col.title}</div>
-                    {col.items.map((s, ii) => (
-                      <div key={ii} style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '4px', fontSize: '7.5px', color: '#8892a4' }}>
-                        {col.color === '#00d47e'
-                          ? <CheckCircle size={8} style={{ color: '#00d47e', flexShrink: 0 }} />
-                          : <XCircle size={8} style={{ color: '#ff1a2e', flexShrink: 0 }} />}
-                        {s}
+                  {
+                    title: '✓ MHC (IHL STANDARD)',
+                    col: '#00d47e',
+                    items: [
+                      'Commander reviews intelligence independently',
+                      'Target identity verified from multiple sources',
+                      'Proportionality assessed case-by-case',
+                      'Feasible precautionary alternatives weighed',
+                      'Deliberate, accountable authorisation',
+                      'Legal responsibility is fully traceable',
+                    ],
+                  },
+                  {
+                    title: '✗ RUBBER STAMP (LAWS REALITY)',
+                    col: '#ff1a2e',
+                    items: [
+                      'AI generates target list autonomously',
+                      '20-second "review" per human life',
+                      'No independent verification of AI output',
+                      'Proportionality pre-computed in aggregate',
+                      'Click to approve at machine pace',
+                      'Responsibility vacuum — who actually decided?',
+                    ],
+                  },
+                ].map(col => (
+                  <div
+                    key={col.title}
+                    className="rounded p-2.5"
+                    style={{ background: `${col.col}08`, border: `1px solid ${col.col}20` }}
+                  >
+                    <div className="font-bold text-[7.5px] mb-2" style={{ color: col.col }}>
+                      {col.title}
+                    </div>
+                    {col.items.map((item, i) => (
+                      <div key={i} className="flex items-start gap-1.5 mb-1.5">
+                        {col.col === '#00d47e'
+                          ? <CheckCircle className="w-2.5 h-2.5 shrink-0 mt-0.5" style={{ color: '#00d47e' }} />
+                          : <XCircle    className="w-2.5 h-2.5 shrink-0 mt-0.5" style={{ color: '#ff1a2e' }} />}
+                        <div className="text-[7px] leading-relaxed" style={{ color: '#8892a4' }}>{item}</div>
                       </div>
                     ))}
                   </div>
@@ -733,50 +635,169 @@ export function ComplianceModule() {
               </div>
             </div>
           </div>
+        )}
 
-          {/* Divider */}
-          <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }} />
+        {/* ══ CASES TAB ═════════════════════════════════════════════════ */}
+        {activeTab === 'cases' && (
+          <div className="space-y-3">
+            <div
+              className="rounded p-2.5 mb-3"
+              style={{ background: 'rgba(255,26,46,0.05)', border: '1px solid rgba(255,26,46,0.2)' }}
+            >
+              <div className="text-[7.5px] leading-relaxed" style={{ color: '#8892a4' }}>
+                <span style={{ color: '#ff8080', fontWeight: 700 }}>THE RUBBER STAMP PROBLEM: </span>
+                When humans approve AI kill lists at machine speed, oversight becomes legal fiction. The following cases are documented from investigative journalism and UN expert reports. Click any case for full detail and source.
+              </div>
+            </div>
 
-          {/* ── KEY DOCUMENTS ── */}
-          <div ref={documentsRef} style={{ display: 'flex', flexDirection: 'column', gap: '7px', scrollMarginTop: '36px' }}>
-            <div style={{ fontSize: '9px', fontWeight: 800, color: '#0096ff', letterSpacing: '0.8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '4px', marginBottom: '6px' }}>📑 KEY DOCUMENTS &amp; PRIMARY SOURCES</div>
-            <div style={{ fontSize: '7.5px', color: '#536878', marginBottom: '4px' }}>Primary sources, international law references, and advocacy documents. All links open in a new tab.</div>
-            {KEY_DOCUMENTS.map((doc, i) => (
-              <a key={i} href={doc.url} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'block', padding: '9px 12px', borderRadius: '6px', textDecoration: 'none', background: 'rgba(255,255,255,0.012)', border: '1px solid rgba(255,255,255,0.06)', transition: 'all 0.2s' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0,150,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(0,150,255,0.2)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.012)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: '6.5px', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', background: `${doc.tagColor}18`, border: `1px solid ${doc.tagColor}40`, color: doc.tagColor, letterSpacing: '0.4px', display: 'inline-block', marginBottom: '4px' }}>{doc.tag}</span>
-                    <div style={{ fontSize: '9px', fontWeight: 700, color: '#ccd6e0', marginBottom: '3px', lineHeight: '1.35' }}>{doc.title}</div>
-                    <div style={{ fontSize: '7.5px', color: '#536878', lineHeight: '1.5' }}>{doc.body}</div>
+            {RUBBER_STAMP_CASES.map((c, i) => {
+              const isOpen = expandedC === i;
+              return (
+                <div
+                  key={i}
+                  className="rounded overflow-hidden transition-all"
+                  style={{
+                    border:     `1px solid ${isOpen ? 'rgba(255,170,0,0.35)' : 'rgba(26,37,53,0.4)'}`,
+                    background: isOpen ? 'rgba(255,170,0,0.03)' : 'rgba(26,37,53,0.08)',
+                  }}
+                >
+                  <div
+                    className="flex items-center justify-between gap-3 p-3 cursor-pointer transition-all"
+                    style={{ background: isOpen ? 'rgba(255,170,0,0.05)' : 'transparent' }}
+                    onClick={() => setExpandedC(isOpen ? null : i)}
+                    onMouseEnter={e => { if (!isOpen) e.currentTarget.style.background = 'rgba(26,37,53,0.15)'; }}
+                    onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-[10px]" style={{ color: '#fff' }}>{c.system}</div>
+                      <div className="text-[6.5px] mt-0.5" style={{ color: '#536878' }}>{c.country}</div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                      <span
+                        className="px-2 py-0.5 rounded text-[7px] font-bold"
+                        style={{ background: 'rgba(255,26,46,0.1)', border: '1px solid rgba(255,26,46,0.25)', color: '#ff8080' }}
+                      >
+                        ⏱ {c.reviewTime}
+                      </span>
+                      {c.targetsPerDay > 0 && (
+                        <span
+                          className="px-2 py-0.5 rounded text-[7px] font-bold"
+                          style={{ background: 'rgba(255,170,0,0.08)', border: '1px solid rgba(255,170,0,0.25)', color: '#ffaa00' }}
+                        >
+                          {c.targetsPerDay.toLocaleString()}/DAY
+                        </span>
+                      )}
+                      {isOpen ? <ChevronDown className="w-3 h-3" style={{ color: '#536878' }} /> : <ChevronRight className="w-3 h-3" style={{ color: '#536878' }} />}
+                    </div>
                   </div>
-                  <ExternalLink size={10} style={{ color: '#0096ff', flexShrink: 0, marginTop: '2px' }} />
+                  {isOpen && (
+                    <div
+                      className="px-4 py-3 space-y-2"
+                      style={{ borderTop: '1px solid rgba(255,170,0,0.15)' }}
+                    >
+                      <div className="text-[8px] leading-relaxed" style={{ color: '#8892a4' }}>
+                        {c.detail}
+                      </div>
+                      <a
+                        href={c.sourceUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-[7px] transition-colors"
+                        style={{ color: '#0096ff' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#38bdf8')}
+                        onMouseLeave={e => (e.currentTarget.style.color = '#0096ff')}
+                      >
+                        <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                        {c.source} ↗
+                      </a>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ══ DOCUMENTS TAB ═════════════════════════════════════════════ */}
+        {activeTab === 'documents' && (
+          <div className="space-y-2">
+            <div className="text-[7.5px] mb-3" style={{ color: '#536878' }}>
+              Primary sources, international law references, and advocacy documents. All links open verified, live pages.
+            </div>
+            {KEY_DOCUMENTS.map((doc, i) => (
+              <a
+                key={i}
+                href={doc.url} target="_blank" rel="noopener noreferrer"
+                className="block rounded p-3 transition-all"
+                style={{
+                  background:  'rgba(26,37,53,0.1)',
+                  border:      '1px solid rgba(26,37,53,0.4)',
+                  textDecoration: 'none',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background    = 'rgba(0,150,255,0.05)';
+                  e.currentTarget.style.borderColor   = 'rgba(0,150,255,0.22)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background    = 'rgba(26,37,53,0.1)';
+                  e.currentTarget.style.borderColor   = 'rgba(26,37,53,0.4)';
+                }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <span
+                      className="inline-block px-1.5 py-0.5 rounded text-[6.5px] font-bold mb-1.5"
+                      style={{
+                        background:  `${doc.tagColor}18`,
+                        border:      `1px solid ${doc.tagColor}40`,
+                        color:       doc.tagColor,
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {doc.tag}
+                    </span>
+                    <div className="font-bold text-[9px] leading-snug mb-1" style={{ color: '#ccd6e0' }}>
+                      {doc.title}
+                    </div>
+                    <div className="text-[7.5px] leading-relaxed" style={{ color: '#536878' }}>
+                      {doc.body}
+                    </div>
+                  </div>
+                  <ExternalLink className="w-3 h-3 shrink-0 mt-0.5" style={{ color: '#0096ff' }} />
                 </div>
               </a>
             ))}
           </div>
-
-        </div>
-
-        {/* Footer */}
-        <div style={{ padding: '6px 16px', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(2,4,10,0.7)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '6.5px', color: '#2d3748', flexShrink: 0 }}>
-          <span>SOURCES: ICRC · +972 MAGAZINE · HRW · AMNESTY · UNODA · STOP KILLER ROBOTS · UN PANEL OF EXPERTS</span>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <a href="https://www.stopkillerrobots.org" target="_blank" rel="noopener noreferrer" style={{ color: '#ec4899', textDecoration: 'none', fontWeight: 700 }} onMouseEnter={(e) => (e.currentTarget.style.color = '#f472b6')} onMouseLeave={(e) => (e.currentTarget.style.color = '#ec4899')}>STOP KILLER ROBOTS ↗</a>
-            <a href="https://ihl-databases.icrc.org" target="_blank" rel="noopener noreferrer" style={{ color: '#00d47e', textDecoration: 'none', fontWeight: 700 }} onMouseEnter={(e) => (e.currentTarget.style.color = '#4ade80')} onMouseLeave={(e) => (e.currentTarget.style.color = '#00d47e')}>ICRC IHL DATABASE ↗</a>
-          </div>
-        </div>
+        )}
       </div>
 
-      <style>{`
-        .compliance-scroll::-webkit-scrollbar { width: 4px; }
-        .compliance-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
-        .compliance-scroll::-webkit-scrollbar-thumb { background: rgba(255,26,46,0.22); border-radius: 3px; }
-        .compliance-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,26,46,0.4); }
-      `}</style>
+      {/* ── FOOTER HUD ───────────────────────────────────────────────────── */}
+      <div
+        className="flex items-center justify-between px-4 shrink-0 text-[6.5px]"
+        style={{ height: 30, background: 'rgba(4,4,8,0.97)', borderTop: '1px solid rgba(26,37,53,0.4)', color: '#2a3a4a' }}
+      >
+        <span>SOURCES: ICRC · +972 MAGAZINE · HRW · AMNESTY INTERNATIONAL · UN CCW GGE · STOP KILLER ROBOTS</span>
+        <div className="flex gap-4">
+          <a
+            href="https://www.stopkillerrobots.org"
+            target="_blank" rel="noopener noreferrer"
+            className="font-bold transition-colors"
+            style={{ color: '#ec4899', textDecoration: 'none' }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#f472b6')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#ec4899')}
+          >
+            STOP KILLER ROBOTS ↗
+          </a>
+          <a
+            href="https://ihl-databases.icrc.org"
+            target="_blank" rel="noopener noreferrer"
+            className="font-bold transition-colors"
+            style={{ color: '#00d47e', textDecoration: 'none' }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#4ade80')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#00d47e')}
+          >
+            ICRC IHL DATABASE ↗
+          </a>
+        </div>
+      </div>
     </div>
   );
 }
