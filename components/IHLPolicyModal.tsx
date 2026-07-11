@@ -45,7 +45,7 @@ const TREATY_DATA: CountryData[] = [
   {
     name: 'India', position: 'AGAINST', positionNote: 'Opposes a binding treaty; wants technology-neutral approach. Developing autonomous weapons capabilities.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: '-', icc: '-', un: true,
-    source: 'https://meetings.unoda.org/section/ccw-gge-laws-2023-documents/',
+    source: 'https://disarmament.unoda.org/en/our-work/conventional-arms/convention-certain-conventional-weapons',
   },
   {
     name: 'South Korea', position: 'AGAINST', positionNote: 'Cautious; supports principles-based approach. Operates autonomous sentry guns (SGR-A1) along DMZ.',
@@ -97,13 +97,13 @@ const TREATY_DATA: CountryData[] = [
   {
     name: 'Pakistan', position: 'MIXED', positionNote: 'Advocates new international legal instrument; concerned by LAWS proliferation. Submitted GGE working papers.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: '-', icc: '-', un: true,
-    source: 'https://meetings.unoda.org/section/ccw-gge-laws-2023-documents/',
+    source: 'https://disarmament.unoda.org/en/our-work/conventional-arms/convention-certain-conventional-weapons',
   },
   // PRO — Support Binding Treaty
   {
     name: 'Austria', position: 'PRO', positionNote: 'Leading LAWS disarmament advocate. Submitted key working papers, co-hosts Vienna Conference on LAWS. Wants preemptive prohibition.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: 'party', icc: 'party', un: true,
-    source: 'https://www.bmeia.gv.at/en/european-foreign-policy/disarmament/autonomous-weapons-systems/',
+    source: 'https://disarmament.unoda.org/en/our-work/conventional-arms/convention-certain-conventional-weapons',
   },
   {
     name: 'New Zealand', position: 'PRO', positionNote: 'Supports binding international treaty. Voted yes on UN First Committee resolution 2023. Member of the Group of Friends on LAWS.',
@@ -123,12 +123,12 @@ const TREATY_DATA: CountryData[] = [
   {
     name: 'Mexico', position: 'PRO', positionNote: 'Strong advocate for a binding legal instrument within the UN framework. Co-authored Latin American LAWS joint paper.',
     gc: 'party', ccw: 'party', ccw2: 'party', ccw5: '-', icc: 'party', un: true,
-    source: 'https://meetings.unoda.org/section/ccw-gge-laws-2023-documents/',
+    source: 'https://disarmament.unoda.org/en/our-work/conventional-arms/convention-certain-conventional-weapons',
   },
   {
     name: 'Egypt', position: 'PRO', positionNote: 'Speaks for African Group; supports new binding treaty at GGE. Submitted joint African position paper.',
     gc: 'party', ccw: 'party', ccw2: '-', ccw5: '-', icc: '-', un: true,
-    source: 'https://meetings.unoda.org/section/ccw-gge-laws-2023-documents/',
+    source: 'https://disarmament.unoda.org/en/our-work/conventional-arms/convention-certain-conventional-weapons',
   },
 ];
 

@@ -1,14 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSimulationStore, PHASE_LABELS } from '@/store/simulation';
-import { AlertTriangle, Radio, Wifi, Lock } from 'lucide-react';
+import { AlertTriangle, Radio, Lock } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleNav } from './modules/ModuleNav';
 import { SupportButton } from './SupportButton';
 import { SimulatorChangelog } from './SimulatorChangelog';
 
 export function SystemHeader() {
-  const { phase, systemTime, totalEngagements, resetSimulation } = useSimulationStore();
+  const { phase, systemTime, resetSimulation } = useSimulationStore();
   const [tick, setTick] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
 
@@ -17,7 +17,7 @@ export function SystemHeader() {
     return () => clearInterval(id);
   }, []);
 
-  const isAlert = phase === 'alert_threshold' || phase === 'engagement' || phase === 'impact';
+  const isAlert  = phase === 'alert_threshold' || phase === 'engagement' || phase === 'impact';
   const isActive = phase !== 'idle';
 
   const timeStr = systemTime.toISOString().split('T')[1].split('.')[0] + ' UTC';
@@ -27,79 +27,66 @@ export function SystemHeader() {
     <>
       <header
         className={clsx(
-          // Use min-w-0 on children to prevent overflow; use overflow-hidden on header itself
-          'relative flex items-center justify-between px-3 py-0 h-11 border-b font-mono text-xs select-none shrink-0 z-50 overflow-hidden',
+          'flex items-center justify-between px-3 h-11 border-b font-mono text-xs select-none shrink-0 z-50 gap-2',
           isAlert
-            ? 'bg-terminal-red-dim border-terminal-red text-terminal-red animate-pulse-red'
+            ? 'bg-terminal-red-dim border-terminal-red'
             : 'bg-terminal-panel border-terminal-border text-terminal-text-dim'
         )}
       >
-        {/* ── LEFT — system identity (fixed width, no wrap) ── */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Status dot + name */}
-          <div className="flex items-center gap-1.5">
-            <div className={clsx(
-              'w-1.5 h-1.5 rounded-full shrink-0',
-              isAlert ? 'bg-terminal-red animate-ping-red'
-              : isActive ? 'bg-terminal-green animate-pulse'
-              : 'bg-terminal-text-faint'
-            )} />
-            <span className={clsx(
-              'font-bold tracking-widest text-[10px] whitespace-nowrap',
-              isAlert ? 'text-terminal-red' : isActive ? 'text-terminal-green' : 'text-terminal-text-dim'
-            )}>
-              LAWS-SIM
-            </span>
-            <span className="text-terminal-text-faint text-[9px]">v2.5.0</span>
-          </div>
+        {/* ── LEFT — system identity ─────────────────────────────────── */}
+        <div className="flex items-center gap-2 shrink-0 min-w-0">
+          {/* Status dot */}
+          <div className={clsx(
+            'w-1.5 h-1.5 rounded-full shrink-0',
+            isAlert  ? 'bg-terminal-red animate-ping-red'
+            : isActive ? 'bg-terminal-green animate-pulse'
+            : 'bg-terminal-text-faint'
+          )} />
 
-          {/* TS//SCI — hide on small */}
-          <div className="hidden lg:flex items-center gap-1 text-terminal-text-faint text-[9px]">
-            <Lock className="w-2.5 h-2.5" />
+          {/* Name + version */}
+          <span className={clsx(
+            'font-bold tracking-widest text-[10px] whitespace-nowrap',
+            isAlert ? 'text-terminal-red' : isActive ? 'text-terminal-green' : 'text-terminal-text-dim'
+          )}>
+            LAWS-SIM
+          </span>
+          <span className="text-terminal-text-faint text-[9px] hidden sm:inline">v2.5.0</span>
+
+          {/* TS//SCI */}
+          <div className="hidden xl:flex items-center gap-1 text-terminal-text-faint text-[8px]">
+            <Lock className="w-2 h-2" />
             <span>TS//SCI</span>
           </div>
 
-          {/* Link status — hide on medium */}
-          <div className="hidden xl:flex items-center gap-2 text-[9px]">
-            <span className="flex items-center gap-1 text-terminal-green">
-              <Radio className="w-2.5 h-2.5" />LINK ACTIVE
-            </span>
-            <span className="flex items-center gap-1 text-terminal-blue">
-              <Wifi className="w-2.5 h-2.5" />SIGINT
-            </span>
-          </div>
+          {/* Link status — no SIGINT */}
+          <span className="hidden xl:flex items-center gap-1 text-terminal-green text-[8px]">
+            <Radio className="w-2 h-2" />LINK ACTIVE
+          </span>
 
-          {/* Command Hub button — only when sim active */}
-          {isActive && (
-            <button
-              onClick={() => resetSimulation()}
-              className="ml-1 px-2 py-0.5 border border-terminal-blue/50 text-terminal-blue hover:bg-terminal-blue/20 rounded font-bold text-[8px] uppercase transition-colors whitespace-nowrap"
-            >
-              [COMMAND HUB]
-            </button>
+          {/* Alert phase label */}
+          {isAlert && (
+            <span className="text-terminal-red text-[8px] font-bold tracking-widest animate-pulse whitespace-nowrap hidden lg:inline">
+              ▲ {PHASE_LABELS[phase]}
+            </span>
           )}
         </div>
 
-        {/* ── CENTER — Module Navigation (absolute centred) ── */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none">
-          <div className="pointer-events-auto flex items-center gap-1.5">
-            {isAlert && (
-              <AlertTriangle className="w-3.5 h-3.5 text-terminal-red shrink-0 animate-pulse" />
-            )}
-            <ModuleNav />
-            {isAlert && (
-              <span className="text-terminal-red text-[8px] font-bold tracking-widest animate-pulse hidden xl:block whitespace-nowrap">
-                {PHASE_LABELS[phase]}
-              </span>
-            )}
-          </div>
+        {/* ── CENTER — Module Navigation (flex-1, no absolute) ─────── */}
+        <div className="flex-1 flex items-center justify-center min-w-0 overflow-hidden">
+          <ModuleNav />
         </div>
 
-        {/* ── RIGHT — clock + support (fixed width, no wrap) ── */}
+        {/* ── RIGHT — clock + alert icon + support ─────────────────── */}
         <div className="flex items-center gap-2 shrink-0">
+          {isAlert && (
+            <AlertTriangle className="w-3.5 h-3.5 text-terminal-red animate-pulse shrink-0" />
+          )}
+
           {/* Clock */}
           <div className="hidden md:flex flex-col items-end leading-tight">
-            <span className="text-terminal-text-faint text-[8px]" suppressHydrationWarning>{dateStr}</span>
+            <span className="text-terminal-text-faint text-[8px]" suppressHydrationWarning>
+              {dateStr}
+            </span>
             <span
               className={clsx('font-bold text-[9px]', tick ? 'text-terminal-green' : 'text-terminal-green/70')}
               suppressHydrationWarning
@@ -108,12 +95,11 @@ export function SystemHeader() {
             </span>
           </div>
 
-          {/* Support button — BY AVI + changelog inside dropdown */}
+          {/* Support + changelog */}
           <SupportButton onChangelogOpen={() => setShowChangelog(true)} />
         </div>
       </header>
 
-      {/* Changelog modal */}
       {showChangelog && (
         <SimulatorChangelog onClose={() => setShowChangelog(false)} />
       )}

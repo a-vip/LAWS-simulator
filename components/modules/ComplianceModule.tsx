@@ -153,7 +153,7 @@ const KEY_DOCUMENTS = [
   {
     title: 'UN Convention on Certain Conventional Weapons — LAWS Negotiations',
     body: 'The CCW Group of Governmental Experts has been negotiating LAWS since 2014. Progress has stalled due to objections from major military powers. This page tracks the ongoing deliberations.',
-    url: 'https://disarmament.unoda.org/the-convention-on-certain-conventional-weapons/',
+    url: 'https://disarmament.unoda.org/en/our-work/conventional-arms/convention-certain-conventional-weapons',
     tag: 'UN CCW', tagColor: '#38bdf8',
   },
 ] as const;

@@ -106,7 +106,7 @@ export function TargetIntelPanel() {
           'autonomous-engagement': 'https://www.icrc.org/en/document/icrc-position-autonomous-weapon-systems',
           'signature-strike': 'https://www.thebureauinvestigates.com/projects/drone-war/pakistan',
           'facial-recognition': 'https://www.972mag.com/lavender-ai-israeli-army-gaza/',
-          'drone-swarm': 'https://www.darpa.mil/program/offensive-swarm-enabled-tactics',
+          'drone-swarm': 'https://www.darpa.mil/research/programs/offensive-swarm-enabled-tactics',
         };
         const url = sources[activeScenario.id];
         return (
