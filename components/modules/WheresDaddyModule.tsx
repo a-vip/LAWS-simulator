@@ -70,6 +70,8 @@ interface Pedestrian {
   speed:number; col:string; sz:number;
   type: 'adult_m'|'adult_f'|'child';
   actTimer:number; paused:boolean; seed:number;
+  state: 'walking'|'surprised'|'fleeing';
+  surpriseTimer:number;
 }
 
 interface HitZone { x:number; y:number; r:number; label:string; lines:string[]; col:string; }
@@ -129,7 +131,8 @@ export function WheresDaddyModule() {
     const radarCY   = panelY + 30 + radarR;
 
     const mapX  = 16 + radarDiam + 24;
-    const mapW2 = w - mapX - 14;
+    // Reserve 248px on right for the occupant panel so the house/map is always visible
+    const mapW2 = w - mapX - 14 - 248;
     const mapY  = panelY + 30;
     const mapH2 = h - mapY - 88;
 
@@ -157,21 +160,31 @@ export function WheresDaddyModule() {
     const houseH = 40;
 
     // ── Pedestrian init (first frame, after layout computed) ────────────────
+    const mkPed = (x:number,y:number,tx:number,ty:number,col:string,type:'adult_m'|'adult_f'|'child',speed:number,sz:number,seed:number): Pedestrian => ({
+      x,y,tx,ty,col,type,speed,sz,seed,
+      actTimer:Math.random()*5, paused:false,
+      state:'walking', surpriseTimer:0,
+    });
     if (!pedInitDone.current) {
       pedInitDone.current = true;
       pedestrians.current = [
-        // H1 walkers
-        { x: mapX+mapW2*0.08, y: H_Y1-2,  tx: V_X1-15,          ty: H_Y1-2,  col:'#4db8ff', type:'adult_m', speed:22, sz:5, actTimer:Math.random()*4, paused:false, seed:1 },
-        { x: V_X1+20,         y: H_Y1+2,  tx: mapX+mapW2*0.60,  ty: H_Y1+2,  col:'#ff8a65', type:'adult_f', speed:18, sz:5, actTimer:Math.random()*4, paused:false, seed:2 },
+        // H1 walkers (slower realistic pace)
+        mkPed(mapX+mapW2*0.08, H_Y1-2,  V_X1-15,         H_Y1-2,  '#4db8ff','adult_m',13,5,1),
+        mkPed(V_X1+20,         H_Y1+2,  mapX+mapW2*0.55, H_Y1+2,  '#ff8a65','adult_f',11,5,2),
         // H2 walkers
-        { x: mapX+mapW2*0.22, y: H_Y2-3,  tx: V_X2+12,          ty: H_Y2-3,  col:'#4db8ff', type:'adult_m', speed:20, sz:5, actTimer:Math.random()*4, paused:false, seed:3 },
-        { x: mapX+mapW2*0.73, y: H_Y2+3,  tx: V_X1+10,          ty: H_Y2+3,  col:'#ff8a65', type:'adult_f', speed:16, sz:5, actTimer:Math.random()*4, paused:false, seed:4 },
-        { x: mapX+mapW2*0.50, y: H_Y2-2,  tx: mapX+mapW2*0.88,  ty: H_Y2-2,  col:'#ffd54f', type:'child',   speed:25, sz:4, actTimer:Math.random()*4, paused:false, seed:5 },
+        mkPed(mapX+mapW2*0.18, H_Y2-3,  V_X2+10,         H_Y2-3,  '#4db8ff','adult_m',12,5,3),
+        mkPed(mapX+mapW2*0.68, H_Y2+3,  V_X1+10,         H_Y2+3,  '#ff8a65','adult_f',10,5,4),
+        mkPed(mapX+mapW2*0.45, H_Y2-2,  mapX+mapW2*0.85, H_Y2-2,  '#ffd54f','child',  16,4,5),
         // V1 walkers
-        { x: V_X1-1, y: mapY+mapH2*0.11, tx: V_X1-1, ty: H_Y1-15, col:'#a5d6a7', type:'adult_f', speed:17, sz:5, actTimer:Math.random()*4, paused:false, seed:6 },
-        { x: V_X1+2, y: H_Y1+35,         tx: V_X1+2, ty: H_Y2-15, col:'#4db8ff', type:'adult_m', speed:21, sz:5, actTimer:Math.random()*4, paused:false, seed:7 },
-        // V2 walker
-        { x: V_X2-1, y: H_Y1+55,         tx: V_X2-1, ty: H_Y2+18, col:'#ff8a65', type:'adult_f', speed:16, sz:5, actTimer:Math.random()*4, paused:false, seed:8 },
+        mkPed(V_X1-1, mapY+mapH2*0.10, V_X1-1, H_Y1-15, '#a5d6a7','adult_f',12,5,6),
+        mkPed(V_X1+2, H_Y1+38,         V_X1+2, H_Y2-15, '#4db8ff','adult_m',13,5,7),
+        // V2 walkers — closer to house to maximise reaction impact
+        mkPed(V_X2-1, H_Y1+25,         V_X2-1, H_Y2+15, '#ff8a65','adult_f',11,5,8),
+        mkPed(V_X2+2, H_Y2-30,         V_X2+2, H_Y1+10, '#4db8ff','adult_m',12,5,9),
+        // Near-house cluster (on V_X2 near house approach & H_Y1 east of V_X2)
+        mkPed(V_X2-2,            houseY+houseH*0.5+22, V_X2-2, H_Y1+8, '#a5d6a7','adult_f',10,5,10),
+        mkPed(V_X2+3,            houseY+houseH*0.5-10, V_X2+3, H_Y2+5, '#ffd54f','child',  15,4,11),
+        mkPed(houseX-houseW*0.7, H_Y1+2,               V_X2-8, H_Y1+2, '#ff8a65','adult_f',11,5,12),
       ];
     }
 
@@ -202,21 +215,34 @@ export function WheresDaddyModule() {
     const isAlarmFlash    = alarmOn.current && !isStruck;
     const timeSinceStrike = isStruck ? ct - alarmT.current - strikeDelay : 0;
 
-    // ── Update pedestrians ──────────────────────────────────────────────────
-    const fleeR = houseW * 4.2;
+    // ── Update pedestrians — state machine: walking → surprised → fleeing ──
+    const fleeR = houseW * 5.0; // wider detection radius for more realism
     for (const p of pedestrians.current) {
+      const dx0 = p.x - houseX, dy0 = p.y - (houseY + houseH/2);
+      const dist0 = Math.sqrt(dx0*dx0 + dy0*dy0);
+
       if (isStruck) {
-        // Flee from explosion
-        const dx = p.x - houseX, dy = p.y - (houseY + houseH/2);
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < fleeR) {
-          const spd = 60 + (fleeR - dist) / fleeR * 85;
-          const nx  = dist > 0.01 ? dx/dist : (Math.random()-0.5);
-          const ny  = dist > 0.01 ? dy/dist : (Math.random()-0.5);
+        if (p.state === 'walking' && dist0 < fleeR) {
+          // Transition to surprised — each ped reacts with slightly different delay
+          p.state = 'surprised';
+          p.surpriseTimer = 0.28 + p.seed * 0.06; // 0.28–0.94s staggered
+        }
+        if (p.state === 'surprised') {
+          p.surpriseTimer -= dt;
+          // Frozen in place, looking toward blast
+          if (p.surpriseTimer <= 0) p.state = 'fleeing';
+        }
+        if (p.state === 'fleeing' && dist0 < fleeR * 1.6) {
+          // Accelerate away — panic speed (much faster than normal walking)
+          const spd = 55 + (1 - Math.min(dist0, fleeR) / fleeR) * 90;
+          const nx  = dist0 > 0.5 ? dx0/dist0 : (p.seed%2===0?1:-1)*(0.5+Math.random()*0.5);
+          const ny  = dist0 > 0.5 ? dy0/dist0 : (Math.random()-0.5);
           p.x = Math.max(mapX+2, Math.min(mapX+mapW2-2, p.x + nx*spd*dt));
           p.y = Math.max(mapY+2, Math.min(mapY+mapH2-2, p.y + ny*spd*dt));
         }
       } else {
+        // Reset state between cycles
+        if (p.state !== 'walking') { p.state = 'walking'; p.surpriseTimer = 0; }
         // Normal street walking
         p.actTimer -= dt;
         if (p.paused) {
@@ -225,9 +251,8 @@ export function WheresDaddyModule() {
           const dx = p.tx - p.x, dy = p.ty - p.y;
           const dist = Math.sqrt(dx*dx + dy*dy);
           if (dist < 4) {
-            p.paused   = Math.random() < 0.3;
+            p.paused   = Math.random() < 0.32;
             p.actTimer = p.paused ? 1.5 + Math.random()*4 : 0;
-            // Pick new waypoint on same street
             const onH = Math.abs(p.y - H_Y1) < 14 || Math.abs(p.y - H_Y2) < 14;
             if (onH) {
               const wxs = [mapX+mapW2*0.04, V_X1-20, V_X1+20, V_X2-20, V_X2+20, mapX+mapW2*0.92];
@@ -621,27 +646,60 @@ export function WheresDaddyModule() {
       ctx.stroke(); ctx.setLineDash([]);
     }
 
-    // ── Civilian pedestrians — person icons ─────────────────────────────────
+    // ── Civilian pedestrians — state-aware person icons ──────────────────────
     for (const p of pedestrians.current) {
-      const pedCol = isStruck ? `rgba(255,${110+p.seed*12},45,0.78)` : p.col;
+      // Colour: normal → surprised (yellow flash) → fleeing (orange)
+      const pedCol = p.state==='surprised'
+        ? `rgba(255,220,50,${0.7+0.3*Math.sin(t*18+p.seed)})` // bright yellow flash
+        : p.state==='fleeing'
+        ? `rgba(255,${100+p.seed*12},40,0.82)`
+        : p.col;
+
       drawPersonIcon(ctx, p.x, p.y, p.sz, pedCol);
 
+      // ── SURPRISED: freeze + pulsing '!' exclamation ─────────────────────
+      if (p.state === 'surprised') {
+        const excA = 0.75 + 0.25*Math.sin(t*20+p.seed); // rapid pulse
+        const excSz = 9 + 2*Math.abs(Math.sin(t*14+p.seed));
+        ctx.font = `bold ${excSz}px "JetBrains Mono",monospace`;
+        ctx.fillStyle = `rgba(255,220,50,${excA})`;
+        ctx.textAlign = 'center';
+        ctx.fillText('!', p.x, p.y - p.sz - 8);
+        ctx.textAlign = 'left';
+        // Shock ring
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.sz + 5 + 4*Math.abs(Math.sin(t*10+p.seed)), 0, Math.PI*2);
+        ctx.strokeStyle=`rgba(255,220,50,${excA*0.4})`; ctx.lineWidth=0.8; ctx.stroke();
+      }
+
+      // ── FLEEING: motion trail dots ────────────────────────────────────────
+      if (p.state === 'fleeing') {
+        const trailA = 0.18 + 0.12*Math.sin(t*6+p.seed);
+        ctx.beginPath(); ctx.arc(p.x - (p.x-houseX)/(Math.sqrt((p.x-houseX)**2+(p.y-houseY)**2)||1)*6,
+                                  p.y - (p.y-houseY)/(Math.sqrt((p.x-houseX)**2+(p.y-houseY)**2)||1)*6,
+                                  p.sz*0.5, 0, Math.PI*2);
+        ctx.fillStyle=`rgba(255,100,40,${trailA})`; ctx.fill();
+      }
+
       // Tooltip hit zone per pedestrian
+      const stateLabel = p.state==='surprised' ? '😱 SHOCKED — WITNESSING STRIKE'
+        : p.state==='fleeing' ? '🏃 FLEEING — NO WARNING GIVEN'
+        : p.type==='child' ? '👧 CHILD — CIVILIAN'
+        : p.type==='adult_f' ? '👤 CIVILIAN (FEMALE)'
+        : '👤 CIVILIAN (MALE)';
       hitZones.current.push({
         x:p.x, y:p.y, r:14,
-        label: isStruck ? '🏃 FLEEING — NO WARNING GIVEN'
-             : p.type==='child' ? '👧 CHILD — CIVILIAN'
-             : p.type==='adult_f' ? '👤 CIVILIAN (FEMALE)'
-             : '👤 CIVILIAN (MALE)',
+        label: stateLabel,
         lines:[
-          isStruck ? 'Running from strike zone — no evacuation warning' : 'Going about daily life',
+          p.state==='surprised' ? 'Frozen in shock — no evacuation warning was given'
+          : p.state==='fleeing' ? 'Running from explosion — no time to react'
+          : 'Going about daily life in the neighbourhood',
           'No weapon signature detected by algorithm',
           'Not included in IDF target dataset',
-          isStruck
-            ? `~${Math.round(Math.sqrt((p.x-houseX)**2+(p.y-houseY-houseH/2)**2))}px from blast epicentre`
-            : 'Within algorithmic passive collection zone',
+          p.state!=='walking'
+            ? `~${Math.round(Math.sqrt((p.x-houseX)**2+(p.y-houseY-houseH/2)**2))}m from blast epicentre`
+            : 'Within passive algorithmic surveillance zone',
         ],
-        col: isStruck ? '#ff6600' : '#4db8ff',
+        col: p.state==='surprised'?'#ffd54f':p.state==='fleeing'?'#ff6600':'#4db8ff',
       });
     }
 
