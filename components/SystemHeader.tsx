@@ -1,16 +1,18 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSimulationStore, PHASE_LABELS } from '@/store/simulation';
-import { AlertTriangle, Radio, Lock } from 'lucide-react';
+import { AlertTriangle, Radio, Lock, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleNav } from './modules/ModuleNav';
 import { SupportButton } from './SupportButton';
 import { SimulatorChangelog } from './SimulatorChangelog';
+import { FeedbackModal } from './FeedbackModal';
 
 export function SystemHeader() {
   const { phase, systemTime, resetSimulation } = useSimulationStore();
-  const [tick, setTick] = useState(false);
+  const [tick, setTick]             = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
+  const [showFeedback, setShowFeedback]   = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => !t), 1000);
@@ -95,13 +97,34 @@ export function SystemHeader() {
             </span>
           </div>
 
-          {/* Support + changelog */}
+          {/* Feedback + Support + changelog */}
+          <button
+            onClick={() => setShowFeedback(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '4px 10px', borderRadius: 20,
+              background: 'rgba(5,8,14,0.88)',
+              border: '1px solid rgba(0,150,255,0.22)',
+              color: '#8892a4', fontSize: '9.5px', fontWeight: 700,
+              cursor: 'pointer', transition: 'all 0.2s', outline: 'none',
+              fontFamily: 'monospace', whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(0,150,255,0.55)'; e.currentTarget.style.color = '#0096ff'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,150,255,0.22)'; e.currentTarget.style.color = '#8892a4'; }}
+            title="Submit feedback, bugs, or feature requests"
+          >
+            <MessageSquare style={{ width: 11, height: 11 }} />
+            FEEDBACK
+          </button>
           <SupportButton onChangelogOpen={() => setShowChangelog(true)} />
         </div>
       </header>
 
       {showChangelog && (
         <SimulatorChangelog onClose={() => setShowChangelog(false)} />
+      )}
+      {showFeedback && (
+        <FeedbackModal onClose={() => setShowFeedback(false)} />
       )}
     </>
   );

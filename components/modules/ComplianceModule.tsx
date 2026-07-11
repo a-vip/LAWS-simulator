@@ -162,36 +162,37 @@ type TabId = 'principles' | 'cases' | 'documents';
 
 // ── Gauge SVG (compliance score) ──────────────────────────────────────────
 function ComplianceGauge() {
-  const R = 56;
-  const stroke = 10;
-  const circ = Math.PI * R; // semi-circle
-  // 0% filled — the gauge shows 0 of 5 principles compliant
+  const R = 44;
+  const stroke = 8;
   return (
-    <svg width={140} height={82} viewBox="0 0 140 82" style={{ overflow: 'visible' }}>
-      {/* Glow effect */}
+    <svg width={110} height={62} viewBox="0 0 110 62" style={{ overflow: 'visible' }}>
       <defs>
-        <filter id="red-glow">
-          <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+        <filter id="red-glow-m6">
+          <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+          <feMerge><feMergeNode in="coloredBlur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <filter id="amber-glow-m6">
+          <feGaussianBlur stdDeviation="2" result="coloredBlur" />
           <feMerge><feMergeNode in="coloredBlur" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
       </defs>
       {/* Track (full semi-circle) */}
       <path
-        d={`M ${70 - R} 70 A ${R} ${R} 0 0 1 ${70 + R} 70`}
+        d={`M ${55 - R} 54 A ${R} ${R} 0 0 1 ${55 + R} 54`}
         fill="none"
-        stroke="rgba(26,37,53,0.6)"
+        stroke="rgba(26,37,53,0.55)"
         strokeWidth={stroke}
         strokeLinecap="round"
       />
-      {/* Filled portion — 0% (nothing filled, but we show a small red dot at start) */}
-      <circle cx={70 - R} cy={70} r={stroke / 2} fill="#ff1a2e" filter="url(#red-glow)" />
-      {/* Labels */}
-      <text x={70} y={52} textAnchor="middle"
-        fontFamily="JetBrains Mono, monospace" fontSize={26} fontWeight="bold" fill="#ff1a2e">
+      {/* Red dot at zero — all principles violated */}
+      <circle cx={55 - R} cy={54} r={stroke / 2} fill="#ff1a2e" filter="url(#red-glow-m6)" />
+      {/* Centre: score */}
+      <text x={55} y={42} textAnchor="middle"
+        fontFamily="JetBrains Mono, monospace" fontSize={28} fontWeight="bold" fill="#ff1a2e">
         0
       </text>
-      <text x={70} y={67} textAnchor="middle"
-        fontFamily="JetBrains Mono, monospace" fontSize={10} fill="#536878">
+      <text x={55} y={56} textAnchor="middle"
+        fontFamily="JetBrains Mono, monospace" fontSize={8} fill="#536878">
         / 5 PRINCIPLES MET
       </text>
     </svg>
@@ -302,44 +303,59 @@ export function ComplianceModule() {
           </div>
         </div>
 
-        {/* CENTER: Compliance score */}
+        {/* CENTER: Compliance score — gauge left, principle list right */}
         <div
-          className="flex flex-col items-center justify-center gap-2"
-          style={{ flex: '1 1 0', borderRight: '1px solid rgba(26,37,53,0.4)' }}
+          className="flex items-center"
+          style={{ flex: '1 1 0', borderRight: '1px solid rgba(26,37,53,0.4)', padding: '0 14px', gap: 14 }}
         >
-          <div className="text-[9px] font-bold tracking-widest" style={{ color: '#ff1a2e' }}>
-            IHL COMPLIANCE SCORE
+          {/* Gauge column */}
+          <div className="flex flex-col items-center shrink-0">
+            <div className="text-[7.5px] font-bold tracking-widest mb-1" style={{ color: '#ff1a2e' }}>IHL SCORE</div>
+            <ComplianceGauge />
+            <div
+              className="font-bold text-center mt-0.5"
+              style={{ fontSize: 8.5, color: '#ff1a2e', lineHeight: 1.3 }}
+            >
+              {pulseCount}/{IHL_PRINCIPLES.length}<br />
+              <span style={{ fontSize: 6.5, color: 'rgba(255,26,46,0.7)' }}>VIOLATED</span>
+            </div>
+            <div className="text-[6px] text-center mt-0.5" style={{ color: '#536878' }}>documented LAWS<br />deployments</div>
           </div>
-          <ComplianceGauge />
-          {/* Five principle dots */}
-          <div className="flex gap-2 mt-1">
+
+          {/* Vertical divider */}
+          <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(26,37,53,0.5)', flexShrink: 0, margin: '10px 0' }} />
+
+          {/* Principle list */}
+          <div className="flex-1 space-y-2 py-1">
+            <div className="text-[7px] font-bold tracking-wider mb-2" style={{ color: '#536878' }}>5 BINDING IHL PRINCIPLES</div>
             {IHL_PRINCIPLES.map((p, i) => (
-              <div
-                key={p.id}
-                className="flex flex-col items-center gap-0.5"
-                title={`${p.name}: VIOLATED`}
-              >
+              <div key={p.id} className="flex items-center gap-2">
                 <div
-                  className="w-4 h-4 rounded-full flex items-center justify-center transition-all"
+                  className="w-1.5 h-1.5 rounded-full shrink-0"
                   style={{
-                    background:  i < pulseCount ? `rgba(${p.id === 'distinction' ? '255,26,46' : p.id === 'proportionality' ? '255,102,0' : p.id === 'precaution' ? '255,170,0' : p.id === 'humanity' ? '129,140,248' : '236,72,153'},0.2)` : 'rgba(26,37,53,0.3)',
-                    border:      `1px solid ${i < pulseCount ? p.color : 'rgba(26,37,53,0.4)'}`,
-                    boxShadow:   i < pulseCount ? `0 0 6px ${p.color}60` : 'none',
+                    background: i < pulseCount ? p.color : 'rgba(26,37,53,0.5)',
+                    boxShadow:  i < pulseCount ? `0 0 5px ${p.color}90` : 'none',
+                  }}
+                />
+                <span
+                  className="flex-1 text-[7.5px] truncate"
+                  style={{ color: i < pulseCount ? '#ccd6e0' : '#2a3a4a' }}
+                >
+                  {p.name}
+                </span>
+                <span
+                  className="text-[6px] font-bold shrink-0 px-1.5 py-px rounded"
+                  style={{
+                    color:      i < pulseCount ? p.color : '#1a2535',
+                    background: i < pulseCount ? `${p.color}16` : 'transparent',
+                    border:     `1px solid ${i < pulseCount ? p.color + '44' : '#1a2535'}`,
+                    transition: 'all 0.3s',
                   }}
                 >
-                  {i < pulseCount && <XCircle className="w-2.5 h-2.5" style={{ color: p.color }} />}
-                </div>
-                <div className="text-[5px] text-center" style={{ color: i < pulseCount ? p.color : '#2a3a4a', maxWidth: 28, lineHeight: 1.2 }}>
-                  {p.name.split(' ')[0]}
-                </div>
+                  {i < pulseCount ? 'VIOLATED' : '——'}
+                </span>
               </div>
             ))}
-          </div>
-          <div className="text-center mt-1">
-            <div className="font-bold text-[8px]" style={{ color: '#ff1a2e' }}>
-              {pulseCount}/{IHL_PRINCIPLES.length} PRINCIPLES VIOLATED
-            </div>
-            <div className="text-[6.5px] mt-0.5" style={{ color: '#536878' }}>by documented LAWS deployments</div>
           </div>
         </div>
 
