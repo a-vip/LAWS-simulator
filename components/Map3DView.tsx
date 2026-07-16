@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSimulationStore } from '@/store/simulation';
-import { ZoomIn, Orbit, Eye } from 'lucide-react';
+import { ZoomIn, Orbit, Eye, ChevronLeft } from 'lucide-react';
 import clsx from 'clsx';
 import { TacticalLayersPanel } from './TacticalLayersPanel';
 import { MapLibreSatellite } from './MapLibreSatellite';
@@ -892,6 +892,7 @@ export function Map3DView({ className }: { className?: string }) {
   const [googleFailed, setGoogleFailed] = useState(false);
   const [spectralMode, setSpectralMode] = useState(false);
   const [mapSource, setMapSource] = useState<'google' | 'satellite' | 'canvas'>('satellite');
+  const { setViewMode, activeScenario } = useSimulationStore();
 
   const handleSetMapSource = useCallback((src: 'google' | 'satellite' | 'canvas') => {
     setMapSource(src);
@@ -915,6 +916,22 @@ export function Map3DView({ className }: { className?: string }) {
       {mapSource === 'satellite' && (
         <TacticalLayersPanel />
       )}
+
+      {/* Back to Hub button — top-left corner */}
+      <button
+        onClick={() => setViewMode('dashboard')}
+        className="absolute top-3 left-3 z-20 flex items-center gap-1 px-2.5 py-1.5 rounded border font-mono text-[9px] font-black uppercase tracking-wider transition-all hover:border-terminal-blue hover:text-terminal-blue group"
+        style={{
+          background: 'rgba(5,8,14,0.88)',
+          borderColor: 'rgba(0,150,255,0.35)',
+          color: '#536878',
+          backdropFilter: 'blur(8px)',
+        }}
+        title="Return to Command Hub"
+      >
+        <ChevronLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" />
+        {activeScenario ? activeScenario.title.substring(0, 20) + (activeScenario.title.length > 20 ? '…' : '') : 'COMMAND HUB'}
+      </button>
 
       {/* HUD overlay */}
       <MapHUD

@@ -5,74 +5,227 @@ import { X, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
 // Kept in-code — update this array with each git push to keep the changelog current
 export const LAWS_CHANGELOG = [
   {
+    version: 'v3.1.0',
+    date: '2026-07-16',
+    title: 'Command Hub Map Fix & Premium Redesign',
+    isMajor: true,
+    bullets: [
+      'Fixed critical map-not-loading bug: added missing glyphs URL to MapLibre GL JS style — symbol-layer failures previously blocked map initialisation.',
+      'Added map.resize() + ResizeObserver so the satellite map correctly fills its container when first mounted from the Command Hub view.',
+      'Wrapped all MapLibre addSource/addLayer calls in try-catch so a single layer failure never prevents the rest of the map from loading.',
+      'Added ← COMMAND HUB back-button on the satellite map view for easy navigation.',
+      'Complete CommandDashboard redesign: richer scenario cards with real coordinates, collateral estimate, legal context excerpt, and source citations.',
+      'Added advocacy banner per pipeline column explaining the educational purpose of each scenario.',
+    ],
+  },
+  {
+    version: 'v3.0.0',
+    date: '2026-07-11',
+    title: 'M2 Tooltips · M6 Center Fix · Feedback System',
+    isMajor: true,
+    bullets: [
+      'M2 Lavender: Premium hover-tooltip system with hit zones on the LAVENDER box, 4 data-source labels, every profile node, SRV server, and stats panel.',
+      'M6 Compliance: Rebuilt center panel as gauge (left) + vertical principle list (right) — eliminated all overlapping text.',
+      'Feedback Modal: FEEDBACK button in the header with 6 report categories and anonymous submission.',
+      'POST /api/feedback API route: logs to Vercel console; optionally sends Discord webhook via DISCORD_FEEDBACK_WEBHOOK env var.',
+    ],
+  },
+  {
+    version: 'v2.9.1',
+    date: '2026-07-11',
+    title: 'M4 Map Layout & NPC Behaviour Fixes',
+    isMajor: false,
+    bullets: [
+      'Fixed occupant profile panel overlapping the house and map area on all three M4 scenarios.',
+      'NPCs: surprise jump + exclamation mark on strike, then flee in the direction opposite the blast.',
+      'Population density increased around the target house prior to the strike.',
+      'Pedestrian speed tuned to realistic walking pace.',
+    ],
+  },
+  {
+    version: 'v2.9.0',
+    date: '2026-07-11',
+    title: "M4 Where's Daddy — Person Icons, NPCs, Flee Animation, Grid Buildings",
+    isMajor: true,
+    bullets: [
+      'Person-shaped icons for all NPCs and the target (matching M2 Lavender style).',
+      'Civilian NPCs walk naturally; on strike they react with ! and flee from blast zone.',
+      'Grid-aligned building layout replaces overlapping random polygons.',
+      'House interiors show occupants before the target arrives.',
+      'Tooltips added for houses, target, radar, and NPC civilians.',
+    ],
+  },
+  {
+    version: 'v2.8.0',
+    date: '2026-07-11',
+    title: 'Reference Links Fixed · Header Cleanup · SIGINT Removed',
+    isMajor: false,
+    bullets: [
+      'Fixed all broken/404 scenario reference links with verified live sources (UNODA, DARPA, bmeia.gv.at, +972 Magazine, HRW, Amnesty International).',
+      'Removed SIGINT element from header.',
+      'Fixed header overlap issue.',
+    ],
+  },
+  {
+    version: 'v2.7.0',
+    date: '2026-07-09',
+    title: 'M6 Compliance — Pure-HTML Redesign with Animated Gauge',
+    isMajor: true,
+    bullets: [
+      'Rebuilt M6 Compliance entirely in pure React/HTML — no canvas dependency.',
+      'Animated compliance gauge SVG (semi-circle arc, 0/5 principles met), fills red as violations are triggered.',
+      'Live IHL principle violation stream: each of 5 principles pulses red when violated.',
+      'Three-column layout: precedent timeline (left), live gauge (centre), real-world case studies (right).',
+      'Advocacy CTA panel with UN CCW and Stop Killer Robots petition links.',
+    ],
+  },
+  {
+    version: 'v2.6.1',
+    date: '2026-07-09',
+    title: 'M5 Human Loop — SVG Clock, Speed Controls, Hover Citations',
+    isMajor: false,
+    bullets: [
+      'Rebuilt M5 as pure HTML for stable rendering at all screen sizes.',
+      'SVG decision clock showing 30-second countdown with live arc animation.',
+      '4-speed playback control (0.5×, 1×, 2×, 4×) for conference pacing.',
+      'Hover cards for all 6 cognitive bias factors reveal academic citations.',
+    ],
+  },
+  {
+    version: 'v2.6.0',
+    date: '2026-07-09',
+    title: 'M5 Human Loop — 3-Column Conference Redesign',
+    isMajor: true,
+    bullets: [
+      'M5 redesigned as a 3-column IHL Decision Framework for conference and summit use.',
+      'Left: legal timeline. Centre: real-time decision visualisation with cognitive bias indicators. Right: documented case studies.',
+      'Conference-legible typography — readable from 5+ metres.',
+    ],
+  },
+  {
+    version: 'v2.5.5',
+    date: '2026-07-04',
+    title: "M4 Where's Daddy — 3 Scenarios, Radar, Family Collateral",
+    isMajor: true,
+    bullets: [
+      "Launched M4 Where's Daddy: 3 selectable scenarios (Family Strike, School Zone, Hospital Proximity).",
+      'Accurate radar display showing target and collateral proximity in real time.',
+      "Based on documented IDF pattern-of-life targeting methodology (Yemen, Pakistan, Gaza).",
+    ],
+  },
+  {
+    version: 'v2.5.4',
+    date: '2026-07-04',
+    title: 'M3 Habsora — Premium Overhaul',
+    isMajor: true,
+    bullets: [
+      'M3 Habsora completely rebuilt: building state machine (intact → damaged → destroyed → rubble).',
+      'Hover tooltips on each building showing structure type, civilian use, and IHL status.',
+      'Based on documented IDF Habsora (Gospel) AI system — 100+ strikes per day in Gaza 2023–24.',
+    ],
+  },
+  {
+    version: 'v2.5.3',
+    date: '2026-07-04',
+    title: 'M1 v2 — Timeline Scrubber & Density Map Labels',
+    isMajor: true,
+    bullets: [
+      'M1 Target Pipeline rebuilt: interactive timeline scrubber with click-to-seek.',
+      'Fixed density map label overlaps (country names and casualty counts).',
+      'Animated phase transitions with IHL citation callouts at each stage.',
+    ],
+  },
+  {
+    version: 'v2.5.2',
+    date: '2026-06-28',
+    title: 'Phase 4 — UN CCW Link Fix, Assessment Close Button, M1 Premium',
+    isMajor: false,
+    bullets: [
+      'Fixed broken UN CCW petition link.',
+      'Added close button to post-strike Assessment overlay.',
+      'M1 (Target Pipeline) premium visual overhaul.',
+    ],
+  },
+  {
+    version: 'v2.5.1',
+    date: '2026-06-28',
+    title: 'Phase 3 — Verified Sources, Drone Glow Rings, Hover Tooltips',
+    isMajor: false,
+    bullets: [
+      'All scenario reference links verified against live page content.',
+      'Added drone glow rings in MapLibre satellite view for visual clarity.',
+      'Hover tooltips on drone assets and target reticle with IHL context and error-rate statistics.',
+      'Phase 2 overhaul: visceral engagement sequence, drone lifecycle animation.',
+    ],
+  },
+  {
     version: 'v2.5.0',
+    date: '2026-06-20',
+    title: 'MapLibre GL JS — Hyperrealistic Tactical Satellite Map',
+    isMajor: true,
+    bullets: [
+      'Replaced Leaflet with MapLibre GL JS for high-performance WebGL satellite rendering.',
+      'ArcGIS World Imagery — real-world satellite photography at every scenario coordinate.',
+      'Full drone flight animation: FOB loiter → transit → hunting → terminal swoop → blast scatter → post-strike loiter.',
+      'Missile projectile animation with expanding impact rings, debris ring, and smoke overlay.',
+      'Per-phase cinematic camera flyTo animations (11 phases, unique zoom/pitch/bearing each).',
+      'Sensor cone overlays, threat zone rings (lethal/danger/caution), no-strike zones, COA vectors.',
+    ],
+  },
+  {
+    version: 'v2.4.0',
     date: '2026-06-13',
     title: 'Palantir MAVEN Tactical Overlays',
     isMajor: true,
     bullets: [
       'Implemented full Palantir MAVEN-style tactical map overlay system: threat radials, sensor fan arcs, COA approach vector triangles, drone flight paths with direction arrows, and NATO-style military markers.',
       'Added MAP LAYERS panel with 5 layer groups and 15 sub-layer toggles — ISR Assets, Threat Analysis, Targeting, Battlefield Geometry, Reference.',
-      'Deployed to sim.sovdash.com via Vercel. Added subdomain routing.',
       'Added Support button (Patreon, Buy Me a Coffee, SovDash community), BY AVI credit, and simulator changelog.',
       'Fixed Google 3D crash caused by stale Leaflet map reference on mode switch.',
-      'Drones now phase-gated: only visible at drone_dispatched, engagement, and impact. Orbit speed and radius corrected to realistic values (~130s per orbit, ~350–660m radius).',
-      'Each drone marker now shows a live EO/IR sensor fan triangle pointing toward the target.',
-    ],
-  },
-  {
-    version: 'v2.4.1',
-    date: '2026-06-04',
-    title: 'Memory & Stability Fixes',
-    isMajor: false,
-    bullets: [
-      'Moved to focused Leaflet satellite view with 1,800m range limit to reduce tile load.',
-      'Fixed TypeScript syntax error in Map3DView.tsx causing compilation failures.',
-      'Resolved map blurring/blank issue after simulation timer completes.',
-    ],
-  },
-  {
-    version: 'v2.4.0',
-    date: '2026-06-03',
-    title: 'Satellite Map & 3D Drone Models',
-    isMajor: true,
-    bullets: [
-      'Integrated Leaflet satellite view with Google Maps tile layer as primary tactical display.',
-      'Added volumetric CSS 3D drone models with rotating blades and searchlight cones.',
-      'Implemented 60fps animation loop with smooth LERP target tracking and impact shockwave bloom.',
-      'Added orbital engagement mode, spectral filter mode, and drone 3D view.',
     ],
   },
   {
     version: 'v2.3.0',
-    date: '2026-05-31',
-    title: 'Module System & IHL Compliance Engine',
-    isMajor: true,
+    date: '2026-06-13',
+    title: 'IHL Treaty Modal · Header & Support Fixes',
+    isMajor: false,
     bullets: [
-      'Released 6 intelligence modules: Target Pipeline, Lavender, Habsora, Where\'s Daddy, Human Loop, Compliance.',
-      'Built IHL compliance scoring engine with proportionality assessment and legal override prompts.',
-      'Added ENGAGEMENTS counter, alert feed, and confidence threshold system.',
+      'Added IHL Policy Modal with treaty status by country (US, UK, Israel, Russia, China, EU, Australia).',
+      'Fixed IHL modal z-index and Support button portal overflow issues.',
+      'Header cleanup, favicon update, compliance module link fixes.',
     ],
   },
   {
     version: 'v2.2.0',
-    date: '2026-05-31',
+    date: '2026-06-13',
+    title: 'Module System & IHL Compliance Engine',
+    isMajor: true,
+    bullets: [
+      "Released 6 intelligence modules: Target Pipeline (M1), Lavender (M2), Habsora (M3), Where's Daddy (M4), Human Loop (M5), Compliance (M6).",
+      'IHL compliance scoring engine with proportionality assessment and legal override prompts.',
+      'ENGAGEMENTS counter, alert feed, confidence threshold system.',
+    ],
+  },
+  {
+    version: 'v2.1.0',
+    date: '2026-06-13',
     title: 'Command Dashboard & Scenario Library',
     isMajor: true,
     bullets: [
       'Built Command Dashboard with three-column pipeline view (Surveillance, Legal Audit, Tactical Execution).',
       'Implemented 7 documented scenarios: Pattern of Life, Structure Targeting, Wedding Strike, Autonomous Engagement, Signature Strike, Facial Recognition, Drone Swarm.',
-      'Added system narrative with phase-aware text and ADVANCE simulation controls.',
+      'System narrative with phase-aware text and ADVANCE simulation controls.',
     ],
   },
   {
-    version: 'v2.1.0',
-    date: '2026-05-31',
-    title: 'Initial Public Release',
+    version: 'v2.0.0',
+    date: '2026-06-13',
+    title: 'Initial Public Release — LAWS-SIM',
     isMajor: true,
     bullets: [
-      'Launched LAWS-SIM as a public educational tool documenting real-world autonomous weapons systems and their ethical implications.',
-      'Core simulation engine with 8 phases: idle → scanning → assessment → target_acquired → tracking → drone_dispatched → engagement → impact.',
-      'Scenarios based on documented JSOC targeting methodology and published LAWS doctrine.',
+      'Launched LAWS-SIM as a public educational tool documenting real-world autonomous weapons systems and their humanitarian implications.',
+      'Core simulation engine with 11 phases: idle → scanning → target_acquired → tracking → confidence_building → alert_threshold → authorization_pending → authorized → drone_dispatched → engagement → impact → assessment.',
+      'Scenarios based on documented JSOC targeting methodology and published LAWS doctrine. Deployed to sim.sovdash.com.',
     ],
   },
 ];
@@ -82,7 +235,7 @@ interface SimulatorChangelogProps {
 }
 
 export function SimulatorChangelog({ onClose }: SimulatorChangelogProps) {
-  const [expandedVersions, setExpandedVersions] = useState<Record<string, boolean>>({ 'v2.5.0': true });
+  const [expandedVersions, setExpandedVersions] = useState<Record<string, boolean>>({ 'v3.1.0': true });
   const [pos, setPos] = useState({ x: 100, y: 80 });
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0 });
