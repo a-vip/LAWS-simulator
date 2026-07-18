@@ -119,9 +119,10 @@ function getDroneStageForPhase(phase: string): DroneStage {
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
-export function MapLibreSatellite({ className, onMapReady }: {
+export function MapLibreSatellite({ className, onMapReady, onFallback: _onFallback }: {
   className?: string;
   onMapReady?: (map: any) => void;
+  onFallback?: () => void;
 }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -199,8 +200,6 @@ export function MapLibreSatellite({ className, onMapReady }: {
         style: {
           version: 8,
           name: 'Tactical Satellite',
-          // ── Required for any symbol layer that renders text ──────────
-          glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
           sources: {
             satellite: {
               type: 'raster',
@@ -221,36 +220,17 @@ export function MapLibreSatellite({ className, onMapReady }: {
         mapRef.current = map;
         setLoaded(true);
         onMapReady?.(map);
-
-        // ── Critical: resize to fill container (layout may not be settled) ──
-        setTimeout(() => { try { map.resize(); } catch (_) {} }, 80);
-        setTimeout(() => { try { map.resize(); } catch (_) {} }, 400);
-
-        // ResizeObserver keeps map filling its container on dynamic layout changes
-        if (mapContainerRef.current && typeof ResizeObserver !== 'undefined') {
-          const ro = new ResizeObserver(() => { try { map.resize(); } catch (_) {} });
-          ro.observe(mapContainerRef.current);
-          // Store for cleanup
-          (mapRef.current as any)._resizeObserver = ro;
-        }
-
-        // Wrap each init step so one failure doesn't block the others
-        try { addTacticalSources(map); } catch (e) { console.warn('[LAWS-SIM] tactical sources:', e); }
-        try { addDroneSources(map); }    catch (e) { console.warn('[LAWS-SIM] drone sources:', e); }
-        try { addTargetReticle(map); }   catch (e) { console.warn('[LAWS-SIM] target reticle:', e); }
-        try { addFOBMarker(map); }       catch (e) { console.warn('[LAWS-SIM] FOB marker:', e); }
+        addTacticalSources(map);
+        addDroneSources(map);
+        addTargetReticle(map);
+        addFOBMarker(map);
       });
     };
 
     initMap();
     return () => {
       cancelAnimationFrame(animFrameRef.current);
-      if (mapRef.current) {
-        // Clean up ResizeObserver before removing map
-        try { (mapRef.current as any)._resizeObserver?.disconnect(); } catch (_) {}
-        try { mapRef.current.remove(); } catch (_) {}
-        mapRef.current = null;
-      }
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
       setLoaded(false);
     };
   }, [activeScenario]);
