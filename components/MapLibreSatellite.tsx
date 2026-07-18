@@ -4,50 +4,6 @@ import { useSimulationStore } from '@/store/simulation';
 import { useMapLayerStore } from '@/store/mapLayers';
 import { getTacticalData, offsetLatLng } from '@/lib/tacticalData';
 
-// ═════════════════════════════════════════════════════════════════════════
-// CDN LOADER — bypasses webpack to prevent blob worker corruption
-// ═════════════════════════════════════════════════════════════════════════
-// maplibre-gl.js is a UMD build: sets window.maplibregl and contains the
-// tile-decode blob worker INLINE. When loaded via <script> (not webpack),
-// webpack never touches the worker code so the blob is never corrupted.
-// This is the root cause of the persistent black-map issue in production.
-const MAPLIBRE_VERSION = '5.24.0';
-let _maplibreLoading: Promise<any> | null = null;
-
-async function ensureMapLibre(): Promise<any> {
-  if (typeof window === 'undefined') throw new Error('SSR context');
-  if ((window as any).maplibregl) return (window as any).maplibregl;
-  if (_maplibreLoading) return _maplibreLoading;
-
-  _maplibreLoading = (async () => {
-    // ─ CSS (──────────────────────────────────────────────────────────────────────
-    if (!document.getElementById('maplibre-gl-css')) {
-      const link = document.createElement('link');
-      link.id = 'maplibre-gl-css';
-      link.rel = 'stylesheet';
-      link.href = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css`;
-      document.head.appendChild(link);
-    }
-    // ─ JS: regular UMD build via CDN (inline blob worker, no workerUrl needed) ────
-    await new Promise<void>((resolve, reject) => {
-      const script = document.createElement('script');
-      // Use the REGULAR build (not CSP). It is UMD format, sets window.maplibregl,
-      // and embeds the tile-decode worker inline — no external file required.
-      script.src = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.js`;
-      script.crossOrigin = 'anonymous';
-      script.onload  = () => resolve();
-      script.onerror = () => reject(new Error(`Failed to load MapLibre ${MAPLIBRE_VERSION} from CDN`));
-      document.head.appendChild(script);
-    });
-    const mgl = (window as any).maplibregl;
-    if (!mgl) throw new Error('window.maplibregl not set after CDN load');
-    console.log('[LAWS-SIM] MapLibre CDN loaded ✓ version:', mgl.version ?? MAPLIBRE_VERSION);
-    return mgl;
-  })();
-
-  return _maplibreLoading;
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // MQ-9 REAPER SVG — top-down silhouette as data URI for MapLibre icon
 // ═══════════════════════════════════════════════════════════════════════════
@@ -163,10 +119,9 @@ function getDroneStageForPhase(phase: string): DroneStage {
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
-export function MapLibreSatellite({ className, onMapReady, onFallback }: {
+export function MapLibreSatellite({ className, onMapReady }: {
   className?: string;
   onMapReady?: (map: any) => void;
-  onFallback?: () => void;
 }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -182,10 +137,6 @@ export function MapLibreSatellite({ className, onMapReady, onFallback }: {
     label: string;
     lines: { key: string; value: string; color?: string }[];
   } | null>(null);
-
-  // Track whether any tiles have ever loaded (watchdog)
-  const tilesLoadedRef = useRef<boolean>(false);
-  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Continuous target drift state (never teleports)
   const targetPosRef = useRef<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
@@ -217,9 +168,7 @@ export function MapLibreSatellite({ className, onMapReady, onFallback }: {
     let map: any;
 
     const initMap = async () => {
-      const maplibregl = await ensureMapLibre();
-      if (!maplibregl) throw new Error('MapLibre CDN load returned null');
-      console.log('[LAWS-SIM] MapLibre loaded via CDN CSP build ✓');
+      const maplibregl = (await import('maplibre-gl')).default;
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
 
       const loc = activeScenario?.location ?? { lat: 15.37, lng: 44.19 };
@@ -249,82 +198,24 @@ export function MapLibreSatellite({ className, onMapReady, onFallback }: {
         container: mapContainerRef.current!,
         style: {
           version: 8,
-          name: 'LAWS Tactical Feed',
-          // Protomaps CDN — reliable glyph delivery, has Open Sans variants
-          glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
+          name: 'Tactical Satellite',
+          // ── Required for any symbol layer that renders text ──────────
+          glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
           sources: {
-            // ── CARTO Dark (no labels) ───────────────────────────────────
-            // Free (CC BY 3.0), no API key required, multi-CDN for reliability.
-            // Chosen over ArcGIS Satellite which now requires paid API auth.
-            base: {
+            satellite: {
               type: 'raster',
-              tiles: [
-                'https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
-                'https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
-                'https://c.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
-                'https://d.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
-              ],
-              tileSize: 256,
-              maxzoom: 20,
-              attribution: '\u00a9 <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors \u00a9 <a href="https://carto.com/attributions">CARTO</a>',
+              tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+              tileSize: 256, maxzoom: 19, attribution: '© Esri',
             },
           },
-          layers: [
-            // Background always visible — prevents pure-black void when tiles load
-            { id: 'background', type: 'background', paint: { 'background-color': '#0d1b2a' } },
-            {
-              id: 'base-tiles', type: 'raster', source: 'base',
-              paint: {
-                'raster-brightness-max': 0.80, 'raster-contrast': 0.48,
-                'raster-saturation': -0.65,    'raster-brightness-min': 0.0,
-              },
-            },
-          ],
+          layers: [{
+            id: 'satellite-tiles', type: 'raster', source: 'satellite',
+            paint: { 'raster-brightness-max': 0.65, 'raster-contrast': 0.35, 'raster-saturation': -0.15 },
+          }],
         },
         center: [loc.lng, loc.lat] as [number, number],
         zoom, pitch, bearing, maxPitch: 75, attributionControl: false,
-        antialias: true,
       } as any);
-
-      // ── Error handler: log tile/style errors ────────────────────────
-      let tileErrorCount = 0;
-      map.on('error', (e: any) => {
-        const msg = e?.error?.message ?? String(e);
-        console.warn('[LAWS-SIM] MapLibre error:', msg);
-        // If we get repeated tile errors, fall back to canvas
-        if (msg.includes('Failed to fetch') || msg.includes('net::ERR') ||
-            msg.includes('404') || msg.includes('403') || msg.includes('0')) {
-          tileErrorCount++;
-          if (tileErrorCount >= 3 && !tilesLoadedRef.current) {
-            console.warn('[LAWS-SIM] Tile errors threshold — triggering canvas fallback');
-            onFallback?.();
-          }
-        }
-      });
-
-      // ── Tile watchdog: 8 s — only cleared when a real tile is decoded ──
-      // CRITICAL: never clear watchdog in 'render' — that fires on blank
-      // frames, permanently preventing the canvas fallback.
-      tilesLoadedRef.current = false;
-      watchdogRef.current = setTimeout(() => {
-        if (!tilesLoadedRef.current) {
-          console.warn('[LAWS-SIM] Watchdog: no tiles in 8 s — canvas fallback');
-          onFallback?.();
-        }
-      }, 8000);
-
-      const confirmTiles = () => {
-        if (!tilesLoadedRef.current) {
-          tilesLoadedRef.current = true;
-          if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }
-          console.log('[LAWS-SIM] Tiles confirmed ✓');
-        }
-      };
-      // 'data' with dataType==='tile' fires only when a tile is decoded
-      map.on('data', (e: any) => { if (e.dataType === 'tile') confirmTiles(); });
-      // sourcedata with e.tile as secondary confirm
-      map.on('sourcedata', (e: any) => { if (e.tile) confirmTiles(); });
-
 
       map.on('load', () => {
         mapRef.current = map;
@@ -351,14 +242,8 @@ export function MapLibreSatellite({ className, onMapReady, onFallback }: {
       });
     };
 
-    initMap().catch((err: unknown) => {
-      console.error('[LAWS-SIM] Fatal map init error — switching to canvas fallback:', err);
-      onFallback?.();
-    });
+    initMap();
     return () => {
-      // Clear watchdog
-      if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }
-      tilesLoadedRef.current = false;
       cancelAnimationFrame(animFrameRef.current);
       if (mapRef.current) {
         // Clean up ResizeObserver before removing map
