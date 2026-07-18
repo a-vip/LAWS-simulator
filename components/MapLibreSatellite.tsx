@@ -174,14 +174,9 @@ export function MapLibreSatellite({ className, onMapReady, onFallback }: {
 
     const initMap = async () => {
       const maplibregl = (await import('maplibre-gl')).default;
-      // ── Worker URL override ──────────────────────────────────────────────
-      // maplibre-gl v5 normally creates the tile-decode worker as an inline
-      // blob URL. In Next.js/Vercel this blob can be blocked by the browser
-      // CSP or fail silently. Pointing workerUrl at the static CSP-worker
-      // file we host in /public/ gives maplibre a reliable same-origin URL.
-      if (typeof window !== 'undefined') {
-        try { (maplibregl as any).workerUrl = '/maplibre-gl-csp-worker.js'; } catch (_) {}
-      }
+      // The regular maplibre-gl.js build uses an inline blob worker — no
+      // external workerUrl needed. Setting workerUrl to the CSP variant
+      // causes a protocol mismatch → tiles silently fail to decode.
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
 
       const loc = activeScenario?.location ?? { lat: 15.37, lng: 44.19 };
@@ -231,16 +226,17 @@ export function MapLibreSatellite({ className, onMapReady, onFallback }: {
               attribution: '\u00a9 <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors \u00a9 <a href="https://carto.com/attributions">CARTO</a>',
             },
           },
-          layers: [{
-            id: 'base-tiles', type: 'raster', source: 'base',
-            paint: {
-              // Desaturated + higher contrast for tactical-map look
-              'raster-brightness-max': 0.80,
-              'raster-contrast': 0.48,
-              'raster-saturation': -0.65,
-              'raster-brightness-min': 0.0,
+          layers: [
+            // Background always visible — prevents pure-black void when tiles load
+            { id: 'background', type: 'background', paint: { 'background-color': '#0d1b2a' } },
+            {
+              id: 'base-tiles', type: 'raster', source: 'base',
+              paint: {
+                'raster-brightness-max': 0.80, 'raster-contrast': 0.48,
+                'raster-saturation': -0.65,    'raster-brightness-min': 0.0,
+              },
             },
-          }],
+          ],
         },
         center: [loc.lng, loc.lat] as [number, number],
         zoom, pitch, bearing, maxPitch: 75, attributionControl: false,
@@ -263,35 +259,28 @@ export function MapLibreSatellite({ className, onMapReady, onFallback }: {
         }
       });
 
-      // ── Tile load watchdog: switch to canvas if no tiles render in 10s ──
+      // ── Tile watchdog: 8 s — only cleared when a real tile is decoded ──
+      // CRITICAL: never clear watchdog in 'render' — that fires on blank
+      // frames, permanently preventing the canvas fallback.
       tilesLoadedRef.current = false;
       watchdogRef.current = setTimeout(() => {
         if (!tilesLoadedRef.current) {
-          console.warn('[LAWS-SIM] Tile watchdog: no tiles after 10s — canvas fallback');
+          console.warn('[LAWS-SIM] Watchdog: no tiles in 8 s — canvas fallback');
           onFallback?.();
         }
-      }, 10000);
+      }, 8000);
 
-      map.on('sourcedata', (e: any) => {
-        if (e.sourceId === 'base' && e.isSourceLoaded && !tilesLoadedRef.current) {
-          // Verify tiles are actually in the tile cache (not just 'loaded' w/ errors)
-          const tileCacheSize = Object.keys((map as any)._tiles ?? {}).length
-            || Object.keys((map as any)._cache?.cache ?? {}).length
-            || 1; // optimistic fallback — don't block on implementation details
-          if (tileCacheSize > 0) {
-            tilesLoadedRef.current = true;
-            if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }
-          }
-        }
-      });
-
-      // Also confirm tiles loaded on first render
-      map.on('render', () => {
-        if (!tilesLoadedRef.current && mapRef.current) {
+      const confirmTiles = () => {
+        if (!tilesLoadedRef.current) {
           tilesLoadedRef.current = true;
           if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }
+          console.log('[LAWS-SIM] Tiles confirmed ✓');
         }
-      });
+      };
+      // 'data' with dataType==='tile' fires only when a tile is decoded
+      map.on('data', (e: any) => { if (e.dataType === 'tile') confirmTiles(); });
+      // sourcedata with e.tile as secondary confirm
+      map.on('sourcedata', (e: any) => { if (e.tile) confirmTiles(); });
 
 
       map.on('load', () => {
