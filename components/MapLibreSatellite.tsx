@@ -7,11 +7,10 @@ import { getTacticalData, offsetLatLng } from '@/lib/tacticalData';
 // ═════════════════════════════════════════════════════════════════════════
 // CDN LOADER — bypasses webpack to prevent blob worker corruption
 // ═════════════════════════════════════════════════════════════════════════
-// When webpack bundles maplibre-gl the ESM build, it can corrupt the
-// inline blob-worker code, causing silent tile decode failures (black map).
-// Loading the CSP build directly via <script> tag bypasses webpack entirely.
-// CSP build is UMD → sets window.maplibregl. The CSP worker is served from
-// /public/maplibre-gl-csp-worker.js (same origin, no CORS issues).
+// maplibre-gl.js is a UMD build: sets window.maplibregl and contains the
+// tile-decode blob worker INLINE. When loaded via <script> (not webpack),
+// webpack never touches the worker code so the blob is never corrupted.
+// This is the root cause of the persistent black-map issue in production.
 const MAPLIBRE_VERSION = '5.24.0';
 let _maplibreLoading: Promise<any> | null = null;
 
@@ -29,23 +28,20 @@ async function ensureMapLibre(): Promise<any> {
       link.href = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css`;
       document.head.appendChild(link);
     }
-    // ─ JS: CSP build (UMD) from CDN ─────────────────────────────────────────────
+    // ─ JS: regular UMD build via CDN (inline blob worker, no workerUrl needed) ────
     await new Promise<void>((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl-csp.js`;
+      // Use the REGULAR build (not CSP). It is UMD format, sets window.maplibregl,
+      // and embeds the tile-decode worker inline — no external file required.
+      script.src = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.js`;
       script.crossOrigin = 'anonymous';
       script.onload  = () => resolve();
       script.onerror = () => reject(new Error(`Failed to load MapLibre ${MAPLIBRE_VERSION} from CDN`));
       document.head.appendChild(script);
     });
-    // ─ CSP worker ───────────────────────────────────────────────────────────────────
-    // CSP build + CSP worker = compatible pair. Worker hosted in /public/
-    // (same-origin, auto-copied by postinstall script).
     const mgl = (window as any).maplibregl;
-    if (mgl && !mgl._cspWorkerSet) {
-      mgl.workerUrl = '/maplibre-gl-csp-worker.js';
-      mgl._cspWorkerSet = true;
-    }
+    if (!mgl) throw new Error('window.maplibregl not set after CDN load');
+    console.log('[LAWS-SIM] MapLibre CDN loaded ✓ version:', mgl.version ?? MAPLIBRE_VERSION);
     return mgl;
   })();
 
