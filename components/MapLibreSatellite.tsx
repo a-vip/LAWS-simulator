@@ -4,6 +4,54 @@ import { useSimulationStore } from '@/store/simulation';
 import { useMapLayerStore } from '@/store/mapLayers';
 import { getTacticalData, offsetLatLng } from '@/lib/tacticalData';
 
+// ═════════════════════════════════════════════════════════════════════════
+// CDN LOADER — bypasses webpack to prevent blob worker corruption
+// ═════════════════════════════════════════════════════════════════════════
+// When webpack bundles maplibre-gl the ESM build, it can corrupt the
+// inline blob-worker code, causing silent tile decode failures (black map).
+// Loading the CSP build directly via <script> tag bypasses webpack entirely.
+// CSP build is UMD → sets window.maplibregl. The CSP worker is served from
+// /public/maplibre-gl-csp-worker.js (same origin, no CORS issues).
+const MAPLIBRE_VERSION = '5.24.0';
+let _maplibreLoading: Promise<any> | null = null;
+
+async function ensureMapLibre(): Promise<any> {
+  if (typeof window === 'undefined') throw new Error('SSR context');
+  if ((window as any).maplibregl) return (window as any).maplibregl;
+  if (_maplibreLoading) return _maplibreLoading;
+
+  _maplibreLoading = (async () => {
+    // ─ CSS (──────────────────────────────────────────────────────────────────────
+    if (!document.getElementById('maplibre-gl-css')) {
+      const link = document.createElement('link');
+      link.id = 'maplibre-gl-css';
+      link.rel = 'stylesheet';
+      link.href = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css`;
+      document.head.appendChild(link);
+    }
+    // ─ JS: CSP build (UMD) from CDN ─────────────────────────────────────────────
+    await new Promise<void>((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl-csp.js`;
+      script.crossOrigin = 'anonymous';
+      script.onload  = () => resolve();
+      script.onerror = () => reject(new Error(`Failed to load MapLibre ${MAPLIBRE_VERSION} from CDN`));
+      document.head.appendChild(script);
+    });
+    // ─ CSP worker ───────────────────────────────────────────────────────────────────
+    // CSP build + CSP worker = compatible pair. Worker hosted in /public/
+    // (same-origin, auto-copied by postinstall script).
+    const mgl = (window as any).maplibregl;
+    if (mgl && !mgl._cspWorkerSet) {
+      mgl.workerUrl = '/maplibre-gl-csp-worker.js';
+      mgl._cspWorkerSet = true;
+    }
+    return mgl;
+  })();
+
+  return _maplibreLoading;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MQ-9 REAPER SVG — top-down silhouette as data URI for MapLibre icon
 // ═══════════════════════════════════════════════════════════════════════════
@@ -173,10 +221,9 @@ export function MapLibreSatellite({ className, onMapReady, onFallback }: {
     let map: any;
 
     const initMap = async () => {
-      const maplibregl = (await import('maplibre-gl')).default;
-      // The regular maplibre-gl.js build uses an inline blob worker — no
-      // external workerUrl needed. Setting workerUrl to the CSP variant
-      // causes a protocol mismatch → tiles silently fail to decode.
+      const maplibregl = await ensureMapLibre();
+      if (!maplibregl) throw new Error('MapLibre CDN load returned null');
+      console.log('[LAWS-SIM] MapLibre loaded via CDN CSP build ✓');
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
 
       const loc = activeScenario?.location ?? { lat: 15.37, lng: 44.19 };
