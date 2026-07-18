@@ -119,9 +119,10 @@ function getDroneStageForPhase(phase: string): DroneStage {
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
-export function MapLibreSatellite({ className, onMapReady }: {
+export function MapLibreSatellite({ className, onMapReady, onFallback }: {
   className?: string;
   onMapReady?: (map: any) => void;
+  onFallback?: () => void;
 }) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -137,6 +138,10 @@ export function MapLibreSatellite({ className, onMapReady }: {
     label: string;
     lines: { key: string; value: string; color?: string }[];
   } | null>(null);
+
+  // Track whether any tiles have ever loaded (watchdog)
+  const tilesLoadedRef = useRef<boolean>(false);
+  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Continuous target drift state (never teleports)
   const targetPosRef = useRef<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
@@ -198,24 +203,88 @@ export function MapLibreSatellite({ className, onMapReady }: {
         container: mapContainerRef.current!,
         style: {
           version: 8,
-          name: 'Tactical Satellite',
-          // ── Required for any symbol layer that renders text ──────────
-          glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+          name: 'LAWS Tactical Feed',
+          // Protomaps CDN — reliable glyph delivery, has Open Sans variants
+          glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
           sources: {
-            satellite: {
+            // ── CARTO Dark (no labels) ───────────────────────────────────
+            // Free (CC BY 3.0), no API key required, multi-CDN for reliability.
+            // Chosen over ArcGIS Satellite which now requires paid API auth.
+            base: {
               type: 'raster',
-              tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-              tileSize: 256, maxzoom: 19, attribution: '© Esri',
+              tiles: [
+                'https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
+                'https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
+                'https://c.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
+                'https://d.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
+              ],
+              tileSize: 256,
+              maxzoom: 20,
+              attribution: '\u00a9 <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors \u00a9 <a href="https://carto.com/attributions">CARTO</a>',
             },
           },
           layers: [{
-            id: 'satellite-tiles', type: 'raster', source: 'satellite',
-            paint: { 'raster-brightness-max': 0.65, 'raster-contrast': 0.35, 'raster-saturation': -0.15 },
+            id: 'base-tiles', type: 'raster', source: 'base',
+            paint: {
+              // Desaturated + higher contrast for tactical-map look
+              'raster-brightness-max': 0.80,
+              'raster-contrast': 0.48,
+              'raster-saturation': -0.65,
+              'raster-brightness-min': 0.0,
+            },
           }],
         },
         center: [loc.lng, loc.lat] as [number, number],
         zoom, pitch, bearing, maxPitch: 75, attributionControl: false,
+        antialias: true,
       } as any);
+
+      // ── Error handler: log tile/style errors ────────────────────────
+      let tileErrorCount = 0;
+      map.on('error', (e: any) => {
+        const msg = e?.error?.message ?? String(e);
+        console.warn('[LAWS-SIM] MapLibre error:', msg);
+        // If we get repeated tile errors, fall back to canvas
+        if (msg.includes('Failed to fetch') || msg.includes('net::ERR') ||
+            msg.includes('404') || msg.includes('403') || msg.includes('0')) {
+          tileErrorCount++;
+          if (tileErrorCount >= 3 && !tilesLoadedRef.current) {
+            console.warn('[LAWS-SIM] Tile errors threshold — triggering canvas fallback');
+            onFallback?.();
+          }
+        }
+      });
+
+      // ── Tile load watchdog: switch to canvas if no tiles render in 10s ──
+      tilesLoadedRef.current = false;
+      watchdogRef.current = setTimeout(() => {
+        if (!tilesLoadedRef.current) {
+          console.warn('[LAWS-SIM] Tile watchdog: no tiles after 10s — canvas fallback');
+          onFallback?.();
+        }
+      }, 10000);
+
+      map.on('sourcedata', (e: any) => {
+        if (e.sourceId === 'base' && e.isSourceLoaded && !tilesLoadedRef.current) {
+          // Verify tiles are actually in the tile cache (not just 'loaded' w/ errors)
+          const tileCacheSize = Object.keys((map as any)._tiles ?? {}).length
+            || Object.keys((map as any)._cache?.cache ?? {}).length
+            || 1; // optimistic fallback — don't block on implementation details
+          if (tileCacheSize > 0) {
+            tilesLoadedRef.current = true;
+            if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }
+          }
+        }
+      });
+
+      // Also confirm tiles loaded on first render
+      map.on('render', () => {
+        if (!tilesLoadedRef.current && mapRef.current) {
+          tilesLoadedRef.current = true;
+          if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }
+        }
+      });
+
 
       map.on('load', () => {
         mapRef.current = map;
@@ -244,6 +313,9 @@ export function MapLibreSatellite({ className, onMapReady }: {
 
     initMap();
     return () => {
+      // Clear watchdog
+      if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }
+      tilesLoadedRef.current = false;
       cancelAnimationFrame(animFrameRef.current);
       if (mapRef.current) {
         // Clean up ResizeObserver before removing map

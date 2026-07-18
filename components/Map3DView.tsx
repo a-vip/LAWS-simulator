@@ -909,7 +909,12 @@ export function Map3DView({ className }: { className?: string }) {
       ) : mapSource === 'google' && !googleFailed ? (
         <GoogleMap3D onError={() => { setGoogleFailed(true); handleSetMapSource('satellite'); }} />
       ) : (
-        <MapLibreSatellite />
+        <MapLibreSatellite
+          onFallback={() => {
+            console.warn('[LAWS-SIM] MapLibre tile watchdog fired — switching to canvas');
+            handleSetMapSource('canvas');
+          }}
+        />
       )}
 
       {/* Tactical layers panel — always shown in satellite mode */}
@@ -968,8 +973,8 @@ function MapHUD({
 
   return (
     <>
-      {/* Top Left Diagnostics */}
-      <div className="absolute top-3 left-3 font-mono text-[9px] text-terminal-text-dim space-y-0.5 pointer-events-none z-10">
+      {/* Top Left Diagnostics — z-20 so they sit above other overlays */}
+      <div className="absolute top-3 left-3 font-mono text-[9px] text-terminal-text-dim space-y-0.5 pointer-events-none z-20" style={{ marginLeft: '0px', marginTop: '28px' }}>
         <div className="text-terminal-green font-bold flex items-center gap-1">
           <span className="w-1.5 h-1.5 bg-terminal-green rounded-full animate-pulse" />
           {hasActive ? 'ISR FEED ACTIVE' : 'SYSTEM STANDBY'}
@@ -979,7 +984,7 @@ function MapHUD({
             <div>LAT: {activeScenario.location.lat.toFixed(5)}°N</div>
             <div>LNG: {activeScenario.location.lng.toFixed(5)}°E</div>
             <div className="text-terminal-blue font-bold uppercase">
-              {viewMode === 'drone' ? 'PLATFORM: MQ-9 LOW RECON' : 'PLATFORM: ORBITAL SAT-8'}
+              {viewMode === 'drone' ? 'PLATFORM: MQ-9 LOW RECON' : 'FEED: TACTICAL MAP'}
             </div>
           </>
         )}
