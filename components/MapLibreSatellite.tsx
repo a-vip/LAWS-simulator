@@ -174,6 +174,14 @@ export function MapLibreSatellite({ className, onMapReady, onFallback }: {
 
     const initMap = async () => {
       const maplibregl = (await import('maplibre-gl')).default;
+      // ── Worker URL override ──────────────────────────────────────────────
+      // maplibre-gl v5 normally creates the tile-decode worker as an inline
+      // blob URL. In Next.js/Vercel this blob can be blocked by the browser
+      // CSP or fail silently. Pointing workerUrl at the static CSP-worker
+      // file we host in /public/ gives maplibre a reliable same-origin URL.
+      if (typeof window !== 'undefined') {
+        try { (maplibregl as any).workerUrl = '/maplibre-gl-csp-worker.js'; } catch (_) {}
+      }
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
 
       const loc = activeScenario?.location ?? { lat: 15.37, lng: 44.19 };
@@ -311,7 +319,10 @@ export function MapLibreSatellite({ className, onMapReady, onFallback }: {
       });
     };
 
-    initMap();
+    initMap().catch((err: unknown) => {
+      console.error('[LAWS-SIM] Fatal map init error — switching to canvas fallback:', err);
+      onFallback?.();
+    });
     return () => {
       // Clear watchdog
       if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }

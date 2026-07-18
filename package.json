@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "node -e \"const fs=require('fs');try{fs.copyFileSync('./node_modules/maplibre-gl/dist/maplibre-gl-csp-worker.js','./public/maplibre-gl-csp-worker.js');console.log('MapLibre CSP worker copied to public/');}catch(e){console.warn('postinstall: could not copy worker:',e.message);}\""
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.6",
