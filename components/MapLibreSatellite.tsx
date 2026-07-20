@@ -200,6 +200,8 @@ export function MapLibreSatellite({ className, onMapReady, onFallback: _onFallba
         style: {
           version: 8,
           name: 'Tactical Satellite',
+          // glyphs required for any symbol/text layers (civilian infra labels etc.)
+          glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
           sources: {
             satellite: {
               type: 'raster',
@@ -220,6 +222,9 @@ export function MapLibreSatellite({ className, onMapReady, onFallback: _onFallba
         mapRef.current = map;
         setLoaded(true);
         onMapReady?.(map);
+        // Resize to fill container — layout may not have settled yet
+        setTimeout(() => { try { map.resize(); } catch (_) {} }, 80);
+        setTimeout(() => { try { map.resize(); } catch (_) {} }, 400);
         addTacticalSources(map);
         addDroneSources(map);
         addTargetReticle(map);
@@ -227,7 +232,12 @@ export function MapLibreSatellite({ className, onMapReady, onFallback: _onFallba
       });
     };
 
-    initMap();
+    initMap().catch((err: Error) => {
+      // Only trigger canvas fallback on genuine init failures (WebGL unavailable etc.)
+      // NOT on slow tile loads — tiles load asynchronously after map init
+      console.warn('[LAWS-SIM] Fatal map init error — switching to canvas fallback:', err);
+      _onFallback?.();
+    });
     return () => {
       cancelAnimationFrame(animFrameRef.current);
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
