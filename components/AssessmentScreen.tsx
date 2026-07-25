@@ -58,10 +58,10 @@ const SCENARIO_SOURCES: Record<string, {
 
 const SKR_PETITION_URL = 'https://stopkillerrobots.org/take-action/sign-our-petition-now/';
 const SKR_ACTION_URL = 'https://stopkillerrobots.org/take-action/';
-// Official UN UNODA — CCW Group of Governmental Experts on LAWS negotiation history
-const UN_CCW_GGE_URL = 'https://www.un.org/disarmament/the-convention-on-certain-conventional-weapons/group-of-governmental-experts-on-laws/';
-// Official UN UNODA — Convention on Certain Conventional Weapons treaty page
-const UN_CCW_TREATY_URL = 'https://www.un.org/disarmament/the-convention-on-certain-conventional-weapons/';
+// Wikipedia: CCW Group of Governmental Experts on LAWS — verified live 2026-07-25
+const UN_CCW_GGE_URL = 'https://en.wikipedia.org/wiki/Group_of_Governmental_Experts_on_Lethal_Autonomous_Weapons_Systems';
+// Wikipedia: Convention on Certain Conventional Weapons — verified live 2026-07-25
+const UN_CCW_TREATY_URL = 'https://en.wikipedia.org/wiki/Convention_on_Certain_Conventional_Weapons';
 
 /** Returns the official ICRC IHL database URL for a given applicableLaw string */
 function getIhlUrl(law: string): string {
