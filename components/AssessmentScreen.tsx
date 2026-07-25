@@ -58,8 +58,26 @@ const SCENARIO_SOURCES: Record<string, {
 
 const SKR_PETITION_URL = 'https://stopkillerrobots.org/take-action/sign-our-petition-now/';
 const SKR_ACTION_URL = 'https://stopkillerrobots.org/take-action/';
-// SKR "Making a Difference" — comprehensive CCW GGE negotiation history (verified live)
-const UN_CCW_URL = 'https://www.stopkillerrobots.org/making-a-difference/';
+// Official UN UNODA — CCW Group of Governmental Experts on LAWS negotiation history
+const UN_CCW_GGE_URL = 'https://www.un.org/disarmament/the-convention-on-certain-conventional-weapons/group-of-governmental-experts-on-laws/';
+// Official UN UNODA — Convention on Certain Conventional Weapons treaty page
+const UN_CCW_TREATY_URL = 'https://www.un.org/disarmament/the-convention-on-certain-conventional-weapons/';
+
+/** Returns the official ICRC IHL database URL for a given applicableLaw string */
+function getIhlUrl(law: string): string {
+  if (/Article\s*4[89]|Article\s*51/.test(law))
+    return 'https://ihl-databases.icrc.org/en/ihl-treaties/api-1977/article-48';
+  if (/Article\s*57/.test(law))
+    return 'https://ihl-databases.icrc.org/en/ihl-treaties/api-1977/article-57';
+  if (/Article\s*50/.test(law))
+    return 'https://ihl-databases.icrc.org/en/ihl-treaties/api-1977/article-50';
+  if (/Protocol\s*I|Geneva/.test(law))
+    return 'https://ihl-databases.icrc.org/en/ihl-treaties/api-1977';
+  if (/Command\s*Responsibility/.test(law))
+    return 'https://www.icrc.org/en/document/command-responsibility-and-superior-orders-ihl';
+  // Fallback — general ICRC autonomous weapons overview
+  return 'https://www.icrc.org/en/document/autonomous-weapon-systems-overview-icrc';
+}
 
 export function AssessmentScreen() {
   const { phase, activeScenario, resetSimulation, loadScenario } = useSimulationStore();
@@ -225,7 +243,13 @@ export function AssessmentScreen() {
               </div>
               <div>
                 <span className="text-terminal-text font-bold block text-[9.5px]">Applicable Law:</span>
-                <span className="text-terminal-text-dim">{activeScenario.legalContext.applicableLaw}</span>
+                <a
+                  href={getIhlUrl(activeScenario.legalContext.applicableLaw)}
+                  target="_blank" rel="noopener noreferrer"
+                  className="text-terminal-text-dim hover:text-terminal-blue hover:underline transition-colors"
+                >
+                  {activeScenario.legalContext.applicableLaw} ↗
+                </a>
               </div>
               <div>
                 <span className="text-terminal-red font-bold block text-[9.5px]">Regulatory Vacuum:</span>
@@ -236,7 +260,7 @@ export function AssessmentScreen() {
                 <span className="text-terminal-text-dim">{activeScenario.legalContext.treatyStatus}</span>
                 {' '}
                 <a
-                  href={UN_CCW_URL} target="_blank" rel="noopener noreferrer"
+                  href={UN_CCW_GGE_URL} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-0.5 text-terminal-blue hover:underline ml-1 text-[8.5px]"
                 >
                   [CCW GGE History ↗]
@@ -271,7 +295,7 @@ export function AssessmentScreen() {
                   All Actions <ExternalLink className="w-2.5 h-2.5" />
                 </a>
                 <span className="text-terminal-text-faint">•</span>
-                <a href={UN_CCW_URL} target="_blank" rel="noopener noreferrer"
+                <a href={UN_CCW_TREATY_URL} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-terminal-blue hover:underline font-bold">
                   CCW Treaty Progress <ExternalLink className="w-2.5 h-2.5" />
                 </a>
