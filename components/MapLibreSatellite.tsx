@@ -232,12 +232,13 @@ export function MapLibreSatellite({ className, onMapReady, onFallback: _onFallba
       });
     };
 
-    initMap().catch((err: Error) => {
-      // Only trigger canvas fallback on genuine init failures (WebGL unavailable etc.)
-      // NOT on slow tile loads — tiles load asynchronously after map init
-      console.warn('[LAWS-SIM] Fatal map init error — switching to canvas fallback:', err);
-      _onFallback?.();
+    // Catch init errors (e.g. WebGL failure) but do NOT auto-switch to canvas —
+    // that was causing permanent fallback on transient chunk-load errors after deployments.
+    // The TACTICAL 3D button is available for manual fallback if needed.
+    initMap().catch((err: unknown) => {
+      console.warn('[LAWS-SIM] Map init error (non-fatal, map may retry on reload):', err);
     });
+
     return () => {
       cancelAnimationFrame(animFrameRef.current);
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
