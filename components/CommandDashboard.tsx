@@ -20,7 +20,7 @@ const COLS = [
     border: 'border-terminal-blue',
     headerBg: 'bg-terminal-blue/10',
     badgeBg: 'bg-terminal-blue/20 text-terminal-blue',
-    scenarios: [SCENARIOS[0], SCENARIOS[4]],
+    scenarios: [SCENARIOS[0], SCENARIOS[4], SCENARIOS[7], SCENARIOS[10]],
   },
   {
     id: 'legal-audit',
@@ -31,7 +31,7 @@ const COLS = [
     border: 'border-terminal-amber',
     headerBg: 'bg-terminal-amber/10',
     badgeBg: 'bg-terminal-amber/20 text-terminal-amber',
-    scenarios: [SCENARIOS[1], SCENARIOS[2]],
+    scenarios: [SCENARIOS[1], SCENARIOS[2], SCENARIOS[8], SCENARIOS[9]],
   },
   {
     id: 'active-execution',
@@ -42,9 +42,10 @@ const COLS = [
     border: 'border-terminal-red',
     headerBg: 'bg-terminal-red/10',
     badgeBg: 'bg-terminal-red/20 text-terminal-red',
-    scenarios: [SCENARIOS[3]],
+    scenarios: [SCENARIOS[3], SCENARIOS[5], SCENARIOS[6]],
   },
 ];
+
 
 function ThreatBadge({ level }: { level: string }) {
   const cfg = {
