@@ -71,13 +71,20 @@ function getIhlUrl(law: string): string {
     return 'https://ihl-databases.icrc.org/en/ihl-treaties/api-1977/article-57';
   if (/Article\s*50/.test(law))
     return 'https://ihl-databases.icrc.org/en/ihl-treaties/api-1977/article-50';
+  if (/Article\s*52/.test(law))
+    return 'https://ihl-databases.icrc.org/en/ihl-treaties/api-1977/article-52';
+  if (/CCW\s*Protocol\s*II|Booby.Trap/i.test(law))
+    return 'https://en.wikipedia.org/wiki/Protocol_on_Mines,_Booby-Traps_and_Other_Devices';
   if (/Protocol\s*I|Geneva/.test(law))
     return 'https://ihl-databases.icrc.org/en/ihl-treaties/api-1977';
   if (/Command\s*Responsibility/.test(law))
-    return 'https://www.icrc.org/en/document/command-responsibility-and-superior-orders-ihl';
-  // Fallback — general ICRC autonomous weapons overview
-  return 'https://www.icrc.org/en/document/autonomous-weapon-systems-overview-icrc';
+    return 'https://ihl-databases.icrc.org/en/ihl-treaties/api-1977/article-86';
+  if (/Fourth\s*Amendment/i.test(law))
+    return 'https://en.wikipedia.org/wiki/Fourth_Amendment_to_the_United_States_Constitution';
+  // Fallback — ICRC IHL treaties database
+  return 'https://ihl-databases.icrc.org/en/ihl-treaties';
 }
+
 
 export function AssessmentScreen() {
   const { phase, activeScenario, resetSimulation, loadScenario } = useSimulationStore();
