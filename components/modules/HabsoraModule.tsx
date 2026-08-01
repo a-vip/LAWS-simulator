@@ -613,80 +613,137 @@ export function HabsoraModule() {
 
       {/* ── ADVOCACY PANEL — bottom-right quadrant ─────────────────────── */}
       <div
-        className="absolute font-mono pointer-events-auto"
+        className="absolute font-mono pointer-events-auto overflow-y-auto"
         style={{
           right:  12,
           bottom: 36,
           width:  'calc(43% - 24px)',
+          maxHeight: 'calc(100% - 100px)',
           zIndex: 10,
         }}
       >
         <div
-          className="rounded overflow-hidden text-[7px] leading-relaxed"
-          style={{ background: 'rgba(4,6,10,0.9)', border: '1px solid rgba(26,37,53,0.5)', backdropFilter: 'blur(10px)' }}
+          className="rounded-lg overflow-hidden text-[7.5px] leading-relaxed"
+          style={{
+            background: 'linear-gradient(180deg, rgba(8,12,20,0.97) 0%, rgba(4,6,10,0.98) 100%)',
+            border: '1px solid rgba(255,26,46,0.18)',
+            backdropFilter: 'blur(16px)',
+            boxShadow: '0 4px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03)',
+          }}
         >
-          {/* Header */}
+          {/* ── Header with gradient ──────────────────────────────────── */}
           <div
-            className="px-3 py-1.5 flex items-center gap-1.5"
-            style={{ borderBottom: '1px solid rgba(26,37,53,0.4)', background: 'rgba(255,26,46,0.05)' }}
+            className="px-4 py-2.5 flex items-center gap-2"
+            style={{
+              borderBottom: '1px solid rgba(255,26,46,0.15)',
+              background: 'linear-gradient(135deg, rgba(255,26,46,0.08) 0%, rgba(255,100,0,0.04) 100%)',
+            }}
           >
-            <AlertTriangle className="w-3 h-3 shrink-0" style={{ color: '#ff1a2e' }} />
-            <span className="font-bold text-[8px] tracking-wider" style={{ color: '#ff1a2e' }}>
-              THE GOSPEL AI — VERIFIED FACTS
-            </span>
+            <div
+              className="w-6 h-6 rounded flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(255,26,46,0.12)', border: '1px solid rgba(255,26,46,0.25)' }}
+            >
+              <AlertTriangle className="w-3.5 h-3.5" style={{ color: '#ff1a2e' }} />
+            </div>
+            <div>
+              <div className="font-black text-[9px] tracking-[0.12em] uppercase" style={{ color: '#ff1a2e' }}>
+                THE GOSPEL AI — VERIFIED FACTS
+              </div>
+              <div className="text-[6.5px]" style={{ color: '#3a4a5a' }}>
+                Sources: +972 Magazine, UNOSAT, Amnesty International
+              </div>
+            </div>
           </div>
 
-          <div className="px-3 py-2 space-y-2.5">
-            {/* Stats grid */}
-            <div className="grid grid-cols-3 gap-x-2 gap-y-1.5">
+          <div className="px-4 py-3 space-y-3">
+            {/* ── Stats grid with cards ─────────────────────────────── */}
+            <div className="grid grid-cols-3 gap-2">
               {([
-                { val: '100+',     label: 'bldg targets / day',       col: '#ff1a2e' },
-                { val: '50+',      label: 'civilians / target OK',     col: '#ff6600' },
-                { val: '~20,000',  label: 'buildings destroyed',       col: '#ff1a2e' },
-                { val: '70%+',     label: 'N.Gaza structures gone',    col: '#ffaa00' },
-                { val: 'Wks→Mins', label: 'target compilation time',   col: '#0096ff' },
-                { val: '0',        label: 'human authorisations',      col: '#536878' },
-              ] as { val: string; label: string; col: string }[]).map(({ val, label, col }) => (
-                <div key={label}>
-                  <div className="font-bold text-[10px] tabular-nums leading-none" style={{ color: col }}>{val}</div>
-                  <div style={{ color: '#2a3a4a' }}>{label}</div>
+                { val: '100+',     label: 'bldg targets / day',       col: '#ff1a2e', bg: 'rgba(255,26,46,0.06)', border: 'rgba(255,26,46,0.15)' },
+                { val: '50+',      label: 'civilians / target OK',     col: '#ff6600', bg: 'rgba(255,100,0,0.05)', border: 'rgba(255,100,0,0.12)' },
+                { val: '~20,000',  label: 'buildings destroyed',       col: '#ff1a2e', bg: 'rgba(255,26,46,0.06)', border: 'rgba(255,26,46,0.15)' },
+                { val: '70%+',     label: 'N.Gaza structures gone',    col: '#ffaa00', bg: 'rgba(255,170,0,0.05)', border: 'rgba(255,170,0,0.12)' },
+                { val: 'Wks→Mins', label: 'target compilation time',   col: '#0096ff', bg: 'rgba(0,150,255,0.05)', border: 'rgba(0,150,255,0.12)' },
+                { val: '0',        label: 'human authorisations',      col: '#536878', bg: 'rgba(83,104,120,0.05)', border: 'rgba(83,104,120,0.12)' },
+              ] as { val: string; label: string; col: string; bg: string; border: string }[]).map(({ val, label, col, bg, border }) => (
+                <div
+                  key={label}
+                  className="rounded px-2 py-1.5"
+                  style={{ background: bg, border: `1px solid ${border}` }}
+                >
+                  <div className="font-black text-[11px] tabular-nums leading-none" style={{ color: col }}>{val}</div>
+                  <div className="mt-0.5 text-[6.5px]" style={{ color: '#3a4a5a' }}>{label}</div>
                 </div>
               ))}
             </div>
 
-            {/* IHL */}
-            <div className="pt-2 space-y-1" style={{ borderTop: '1px solid rgba(26,37,53,0.4)' }}>
-              <div className="flex items-center gap-1">
-                <Shield className="w-2.5 h-2.5 shrink-0" style={{ color: '#0096ff' }} />
-                <span className="font-bold tracking-wider" style={{ color: '#0096ff', fontSize: '7px' }}>APPLICABLE IHL</span>
+            {/* ── IHL Section ──────────────────────────────────────── */}
+            <div
+              className="rounded-md px-3 py-2.5 space-y-2"
+              style={{
+                background: 'rgba(0,150,255,0.03)',
+                border: '1px solid rgba(0,150,255,0.12)',
+              }}
+            >
+              <div className="flex items-center gap-1.5">
+                <Shield className="w-3 h-3 shrink-0" style={{ color: '#0096ff' }} />
+                <span className="font-black tracking-[0.1em] text-[7.5px] uppercase" style={{ color: '#0096ff' }}>
+                  APPLICABLE IHL
+                </span>
               </div>
-              <p style={{ color: '#536878', lineHeight: 1.65 }}>
-                <span style={{ color: '#ccd6e0', fontWeight: 700 }}>Proportionality</span> (Art.&nbsp;51(5)(b), AP&nbsp;I) — Civilian harm must not be excessive relative to anticipated military advantage. No AI can make this legal judgement.
-              </p>
-              <p style={{ color: '#536878', lineHeight: 1.65 }}>
-                <span style={{ color: '#ccd6e0', fontWeight: 700 }}>Distinction</span> (Art.&nbsp;48, AP&nbsp;I) — Parties must always distinguish between combatants and civilians.
-              </p>
+              <div className="space-y-1.5">
+                <p style={{ color: '#6a7a8a', lineHeight: 1.65 }}>
+                  <a
+                    href="https://ihl-databases.icrc.org/en/ihl-treaties/api-1977/article-51"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="transition-colors"
+                    style={{ color: '#ccd6e0', fontWeight: 700, textDecoration: 'underline', textDecorationColor: 'rgba(0,150,255,0.3)', textUnderlineOffset: '2px' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#0096ff')}
+                    onMouseLeave={e => (e.currentTarget.style.color = '#ccd6e0')}
+                  >Proportionality</a> (Art.&nbsp;51(5)(b), AP&nbsp;I) — Civilian harm must not be excessive relative to anticipated military advantage. No AI can make this legal judgement.
+                </p>
+                <p style={{ color: '#6a7a8a', lineHeight: 1.65 }}>
+                  <a
+                    href="https://ihl-databases.icrc.org/en/ihl-treaties/api-1977/article-48"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="transition-colors"
+                    style={{ color: '#ccd6e0', fontWeight: 700, textDecoration: 'underline', textDecorationColor: 'rgba(0,150,255,0.3)', textUnderlineOffset: '2px' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#0096ff')}
+                    onMouseLeave={e => (e.currentTarget.style.color = '#ccd6e0')}
+                  >Distinction</a> (Art.&nbsp;48, AP&nbsp;I) — Parties must always distinguish between combatants and civilians.
+                </p>
+              </div>
             </div>
 
-            {/* Sources */}
-            <div className="pt-1.5 space-y-1" style={{ borderTop: '1px solid rgba(26,37,53,0.4)' }}>
-              <div className="flex items-center gap-1 mb-0.5">
-                <BookOpen className="w-2.5 h-2.5 shrink-0" style={{ color: '#536878' }} />
-                <span className="font-bold" style={{ color: '#2a3a4a' }}>PRIMARY SOURCES</span>
+            {/* ── Sources ──────────────────────────────────────────── */}
+            <div className="pt-1 space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <BookOpen className="w-3 h-3 shrink-0" style={{ color: '#4a5a6a' }} />
+                <span className="font-black text-[7px] tracking-[0.08em] uppercase" style={{ color: '#3a4a5a' }}>
+                  PRIMARY SOURCES
+                </span>
               </div>
               {([
                 ['+972 Magazine — Lavender/Gospel AI (Apr 2024)', 'https://www.972mag.com/lavender-ai-israeli-army-gaza/'],
-                ['UNOSAT — Gaza Damage Assessment (Nov 2023)',     'https://www.unitar.org/maps/unosat-rapid-mapping'],
-                ['Amnesty International — Gaza Infrastructure',   'https://www.amnesty.org/en/location/middle-east-and-north-africa/israel-and-occupied-palestinian-territories/'],
+                ['UNOSAT — Gaza Damage Assessment',               'https://unosat.org/products/3793'],
+                ['Amnesty International — Israel & OPT',          'https://www.amnesty.org/en/location/middle-east-and-north-africa/middle-east/israel-and-the-occupied-palestinian-territory/'],
               ] as [string, string][]).map(([label, url]) => (
                 <a key={url} href={url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1 transition-colors"
-                  style={{ color: '#2a3a4a' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#0096ff')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#2a3a4a')}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded transition-all group"
+                  style={{ color: '#4a5a6a', background: 'transparent' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.color = '#0096ff';
+                    e.currentTarget.style.background = 'rgba(0,150,255,0.05)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.color = '#4a5a6a';
+                    e.currentTarget.style.background = 'transparent';
+                  }}
                 >
-                  <ExternalLink className="w-2 h-2 shrink-0" />
-                  <span>{label}</span>
+                  <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                  <span className="text-[7px]">{label}</span>
                 </a>
               ))}
             </div>
@@ -696,3 +753,4 @@ export function HabsoraModule() {
     </div>
   );
 }
+
